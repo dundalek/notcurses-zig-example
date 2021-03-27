@@ -1,0 +1,40 @@
+;; -*- clojure -*-
+(const c (@import "c.zig"))
+
+(const default_notcurses_options
+ ^c.notcurses_options
+ {:termtype nil
+  :renderfp nil
+  :loglevel c.ncloglevel_e.NCLOGLEVEL_SILENT
+  :margin_t 0
+  :margin_r 0
+  :margin_b 0
+  :margin_l 0
+  :flags 0})
+
+(defn ^void main []
+  (var ^c.notcurses_options opts default_notcurses_options)
+  (set! (.-flags opts) c.NCOPTION_SUPPRESS_BANNERS)
+
+  (var ^*c.notcurses nc (-> (c.notcurses_core_init &opts nil)
+                            (orelse (@panic "notcurses_core_init() failed"))))
+  (var ^c_int dimy undefined)
+  (var ^c_int dimx undefined)
+  (var ^*c.ncplane n (-> (c.notcurses_stddim_yx nc &dimy &dimx)
+                         (orelse (@panic "notcurses_stddim_yx() failed"))))
+  (var ^u8 ch \A)
+  (set! _ (c.ncplane_set_scrolling n true))
+  (while true
+    (var req ^c.timespec {:tv_sec 0 :tv_nsec 1000000})
+    (set! _ (c.nanosleep &req nil))
+    (if (not= (c.ncplane_putchar n ch) 1)
+      (break))
+
+    (inc! ch)
+    (if (= ch \{)
+      (set! ch \A))
+
+    (if (not= (c.notcurses_render nc) 0)
+      (break)))
+
+  (set! _ (c.notcurses_stop nc)))
