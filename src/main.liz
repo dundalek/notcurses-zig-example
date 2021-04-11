@@ -65,7 +65,7 @@
   (var ^"[BOX_NUM][4]c_int" bs undefined)
   (var ^usize i 0)
   (while-step (< i bs.len) (inc! i)
-    (var ^c_int y (+ dimy 2))
+    (var ^c_int y (+ dimy 4))
     (var ^c_int x (@divTrunc dimx 2))
     (aset bs i 0 y)
     (aset bs i 1 x)
@@ -74,19 +74,21 @@
   (return bs))
 
 (defn- ^"[BOX_NUM][4]c_int" make_boxes_arranged [^anytype dimy ^anytype dimx]
-  (var ^c_int x0 0)
+  (var ^c_int x0 2)
   (var x1 (-> dimx (* 40) (@divFloor 100)))
   (var x2 (-> dimx (* 55) (@divFloor 100)))
   (var x3 (-> dimx (* 85) (@divFloor 100)))
-  (var x4 (dec dimx))
+  ; (var x4 (dec dimx))
+  (var x4 dimx)
 
-  (var ^c_int y0 0)
+  (var ^c_int y0 1)
   (var y1 (-> dimy (* 18) (@divFloor 100)))
   (var y2 (-> dimy (* 22) (@divFloor 100)))
   (var y3 (-> dimy (* 35) (@divFloor 100)))
   (var y4 (-> dimy (* 55) (@divFloor 100)))
   (var y5 (-> dimy (* 70) (@divFloor 100)))
-  (var y6 (dec dimy))
+  ; (var y6 (dec dimy))
+  (var y6 dimy)
 
   (var bs
     ^"[BOX_NUM][4]c_int"
@@ -137,17 +139,27 @@
     (var opts nc.default_ncplane_options)
     (set! (.-rows opts) 1)
     (set! (.-cols opts) 1)
-    (var plane (nc.ncplane_create n &opts))
+    (const plane (nc.ncplane_create n &opts))
     (aset planes i plane.?)))
 
-(defn- ^void draw_boxes_colored [^"[BOX_NUM] *nc.ncplane" planes]
+(defn- ^!void draw_boxes_colored [^"[BOX_NUM] *nc.ncplane" planes]
   (var ^usize i 0)
   (while-step (< i planes.len) (inc! i)
     (var ^u64 chans 0)
     (try (nc.err (nc.channels_set_bg_rgb &chans (aget box_colors i))))
-    (var plane (aget planes i))
+    (const plane (aget planes i))
     (try (nc.err (nc.ncplane_set_base plane (cstr " ") 0 chans)))
     (nc.ncplane_erase plane)))
+
+(defn- ^!void draw_boxes_gradients [^"[BOX_NUM] *nc.ncplane" planes]
+  (var ^usize i 0)
+  (while-step (< i planes.len) (inc! i)
+    (const plane (aget planes i))
+    (const ^u32 ur (bit-or 0xffffff nc.CELL_BGDEFAULT_MASK))
+    (const ^u32 ul (bit-or (aget box_colors i) (@intCast u32 nc.CELL_BGDEFAULT_MASK)))
+    (const ^u32 lr (bit-or (aget box_colors i) (@intCast u32 nc.CELL_BGDEFAULT_MASK)))
+    (const ^u32 ll (bit-or 0x000000 nc.CELL_BGDEFAULT_MASK))
+    (try (nc.err (nc.ncplane_highgradient plane ul ur ll lr (dec (nc.ncplane_dim_y plane)) (dec (nc.ncplane_dim_x plane)))))))
 
 (defn- ^!void draw_boxes_bordered [^"[BOX_NUM] *nc.ncplane" planes]
   (var ^usize i 0)
@@ -155,7 +167,7 @@
     (var plane (aget planes i))
     (nc.ncplane_erase plane)
     (try (nc.err (nc.ncplane_cursor_move_yx plane 0 0)))
-    ;; Ignoring error (e.g. the dimensions are too small), if the box grows it will be re-drawn when rendering next frames
+    ;; Ignoring error (e.g. the dimensions are too small), when the box fits it will be re-drawn in future frames
     (set! _ (nc.ncplane_rounded_box plane 0 0 (dec (nc.ncplane_dim_y plane)) (dec (nc.ncplane_dim_x plane)) 0))))
 
 (defn- ^!void reposition_plane [^*nc.ncplane plane ^"[4]c_int" box]
@@ -166,6 +178,35 @@
   (var ^usize i 0)
   (while-step (< i planes.len) (inc! i)
     (try (reposition_plane (aget planes i) (aget boxes i)))))
+
+(defn- ^!*nc.ncplane make_message_box [^*nc.ncplane parent ^c_int windowy ^c_int windowx]
+  (const l1 "Notcurses by Nick Black et al")
+  (const l2 "Zig lang by Andrew Kelley & community")
+  (const l3 "Liz lang & demo by Jakub Dundalek")
+  (const l4 "Press q to quit")
+
+  (var opts nc.default_ncplane_options)
+  (set! (.-rows opts) (+ 5 2))
+  (set! (.-cols opts) (-> l2 .-len (+ 4)))
+  (set! (.-x opts) 4)
+  (set! (.-y opts) (- windowy (.-rows opts) 2))
+  (const plane (.-? (nc.ncplane_create parent &opts)))
+
+  (var ^u64 chans 0)
+  (try (nc.err (nc.channels_set_bg_rgb &chans 0x000000)))
+  (try (nc.err (nc.channels_set_bg_alpha &chans nc.CELL_ALPHA_BLEND)))
+  (try (nc.err (nc.ncplane_set_base plane (cstr " ") 0 chans)))
+
+  (var ^u64 border_chans 0)
+  (try (nc.err (nc.channels_set_fg_rgb &border_chans c_red)))
+  (set! _ (nc.ncplane_rounded_box plane 0 border_chans (dec (nc.ncplane_dim_y plane)) (dec (nc.ncplane_dim_x plane)) 0))
+
+  (try (nc.err (nc.ncplane_putstr_yx plane 1 2 (cstr l1))))
+  (try (nc.err (nc.ncplane_putstr_yx plane 2 2 (cstr l2))))
+  (try (nc.err (nc.ncplane_putstr_yx plane 3 2 (cstr l3))))
+  (try (nc.err (nc.ncplane_putstr_yx plane 5 2 (cstr l4))))
+
+  (return plane))
 
 (defn ^!void main []
   (var ^nc.notcurses_options nc_opts nc.default_notcurses_options)
@@ -255,19 +296,94 @@
       (while-step (< t (+ time_start duration)) (set! t (time.get_time_ns))
         (var ^u64 chans 0)
         (set! _ (nc.channels_set_bchannel &chans (try (transition_rgb 0x000000 (aget box_colors i) duration (- t time_start)))))
-        (try (nc.err (nc.channels_set_bg_alpha &chans nc.CELL_ALPHA_BLEND)))
         (try (nc.err (nc.ncplane_set_base plane (cstr " ") 0 chans)))
         (nc.ncplane_erase plane)
         (try (nc.err (nc.notcurses_render ncs)))
         (time.sleep_until_ns (+ t step_ns)))))
 
   (do
-   (set! duration 200e6)
-   (var ^usize i 0)
-   (while-step (< i box_planes.len) (inc! i)
-     (set! time_start (time.get_time_ns))
-     (set! t time_start)
-     (while-step (< t (+ time_start duration)) (set! t (time.get_time_ns))
-       (try (reposition_plane (aget box_planes i) (transition_box (aget boxes_arranged i) (aget boxes_bottom_out i) duration (- t time_start))))
-       (try (nc.err (nc.notcurses_render ncs)))
-       (time.sleep_until_ns (+ t step_ns))))))
+    (set! duration 150e6)
+    (var ^usize i 0)
+    (while-step (< i box_planes.len) (inc! i)
+      (var plane (aget box_planes i))
+      (set! time_start (time.get_time_ns))
+      (set! t time_start)
+      (while-step (< t (+ time_start duration)) (set! t (time.get_time_ns))
+        (const ^u32 ur (bit-or (try (transition_rgb (aget box_colors i) 0xffffff duration (- t time_start))) (@intCast u32 nc.CELL_BGDEFAULT_MASK)))
+        (const ^u32 ul (bit-or (aget box_colors i) (@intCast u32 nc.CELL_BGDEFAULT_MASK)))
+        (const ^u32 lr (bit-or (aget box_colors i) (@intCast u32 nc.CELL_BGDEFAULT_MASK)))
+        (const ^u32 ll (bit-or (try (transition_rgb (aget box_colors i) 0x000000 duration (- t time_start))) (@intCast u32 nc.CELL_BGDEFAULT_MASK)))
+        (try (nc.err (nc.ncplane_highgradient plane ul ur ll lr (dec (nc.ncplane_dim_y plane)) (dec (nc.ncplane_dim_x plane)))))
+        (try (nc.err (nc.notcurses_render ncs)))
+        (time.sleep_until_ns (+ t step_ns)))))
+
+  ; (try (reposition_planes box_planes boxes_arranged))
+  ; (try (draw_boxes_gradients box_planes))
+  ; (try (nc.err (nc.notcurses_render ncs)))
+
+  (var ^*nc.ncplane message_box (try (make_message_box n dimy dimx)))
+
+  (do
+    (set! duration 300e6)
+    (set! time_start (time.get_time_ns))
+    (set! t time_start)
+    (const ^c_int start_x (- (nc.ncplane_dim_x message_box)))
+    (const ^c_int end_x (nc.ncplane_x message_box))
+    (const y (nc.ncplane_y message_box))
+    (while-step (< t (+ time_start duration)) (set! t (time.get_time_ns))
+      (const ^c_int x (linear_transition start_x end_x duration (- t time_start)))
+      (try (nc.err (nc.ncplane_move_yx message_box y x)))
+      (try (nc.err (nc.notcurses_render ncs)))
+      (time.sleep_until_ns (+ t step_ns)))
+    (try (nc.err (nc.ncplane_move_yx message_box y end_x)))
+    (try (nc.err (nc.notcurses_render ncs))))
+
+  ; (set! _ (nc.notcurses_getc_blocking ncs nil))
+
+  (block :outer
+    (var ^usize loop 0)
+    (while-step true (inc! loop)
+      (set! duration 1000e6)
+      (set! time_start (time.get_time_ns))
+      (set! t time_start)
+      (while-step (< t (+ time_start duration)) (set! t (time.get_time_ns))
+        (var ^usize i 0)
+        (while-step (< i box_planes.len) (inc! i)
+          (var plane (aget box_planes i))
+          (var i_next (mod (inc i) BOX_NUM))
+          (const colors ^"[4]u32"
+                 [(aget box_colors i)
+                  0xffffff
+                  (aget box_colors i)
+                  0x000000])
+          (var ^"[4]u32" corners undefined)
+          (var ^usize j 0)
+          (while-step (< j 4) (inc! j)
+            (aset corners j (bit-or (@intCast u32 nc.CELL_BGDEFAULT_MASK)
+                                    (try (transition_rgb (aget colors (mod (+ loop j) 4))
+                                                         (aget colors (mod (+ j loop 1) 4))
+                                                         duration
+                                                         (- t time_start))))))
+          (try (nc.err (nc.ncplane_highgradient plane
+                                                (aget corners 0)
+                                                (aget corners 1)
+                                                (aget corners 3)
+                                                (aget corners 2)
+                                                (dec (nc.ncplane_dim_y plane))
+                                                (dec (nc.ncplane_dim_x plane))))))
+        (try (nc.err (nc.notcurses_render ncs)))
+        (time.sleep_until_ns (+ t step_ns))
+        (var ^c_uint keypress (nc.notcurses_getc_nblock ncs nil))
+        (when (= keypress \q)
+          (break :outer)))))
+
+  #_(do
+     (set! duration 150e6)
+     (var ^usize i 0)
+     (while-step (< i box_planes.len) (inc! i)
+       (set! time_start (time.get_time_ns))
+       (set! t time_start)
+       (while-step (< t (+ time_start duration)) (set! t (time.get_time_ns))
+         (try (reposition_plane (aget box_planes i) (transition_box (aget boxes_arranged i) (aget boxes_bottom_out i) duration (- t time_start))))
+         (try (nc.err (nc.notcurses_render ncs)))
+         (time.sleep_until_ns (+ t step_ns))))))

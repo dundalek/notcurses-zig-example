@@ -51,7 +51,7 @@ fn make_boxes_bottom_out(dimy: anytype, dimx: anytype) [BOX_NUM][4]c_int {
     var bs: [BOX_NUM][4]c_int = undefined;
     var i: usize = 0;
     while (i < bs.len) : (i += 1) {
-        var y: c_int = (dimy + 2);
+        var y: c_int = (dimy + 4);
         var x: c_int = @divTrunc(dimx, 2);
         bs[i][0] = y;
         bs[i][1] = x;
@@ -62,18 +62,18 @@ fn make_boxes_bottom_out(dimy: anytype, dimx: anytype) [BOX_NUM][4]c_int {
 }
 
 fn make_boxes_arranged(dimy: anytype, dimx: anytype) [BOX_NUM][4]c_int {
-    var x0: c_int = 0;
+    var x0: c_int = 2;
     var x1 = @divFloor(dimx * 40, 100);
     var x2 = @divFloor(dimx * 55, 100);
     var x3 = @divFloor(dimx * 85, 100);
-    var x4 = (dimx - 1);
-    var y0: c_int = 0;
+    var x4 = dimx;
+    var y0: c_int = 1;
     var y1 = @divFloor(dimy * 18, 100);
     var y2 = @divFloor(dimy * 22, 100);
     var y3 = @divFloor(dimy * 35, 100);
     var y4 = @divFloor(dimy * 55, 100);
     var y5 = @divFloor(dimy * 70, 100);
-    var y6 = (dimy - 1);
+    var y6 = dimy;
     var bs = [BOX_NUM][4]c_int{ .{ y0, x0, y5, x1 }, .{ y5, x0, y6, x1 }, .{ y0, x1, y2, x2 }, .{ y2, x1, y5, x2 }, .{ y5, x1, y6, x2 }, .{ y0, x2, y3, x3 }, .{ y3, x2, y4, x3 }, .{ y4, x2, y6, x4 }, .{ y0, x3, y1, x4 }, .{ y1, x3, y4, x4 } };
     return bs;
 }
@@ -113,19 +113,31 @@ fn make_box_planes(n: *nc.ncplane, planes: []*nc.ncplane) void {
         var opts = nc.default_ncplane_options;
         opts.rows = 1;
         opts.cols = 1;
-        var plane = nc.ncplane_create(n, &opts);
+        const plane = nc.ncplane_create(n, &opts);
         planes[i] = plane.?;
     }
 }
 
-fn draw_boxes_colored(planes: [BOX_NUM]*nc.ncplane) void {
+fn draw_boxes_colored(planes: [BOX_NUM]*nc.ncplane) !void {
     var i: usize = 0;
     while (i < planes.len) : (i += 1) {
         var chans: u64 = 0;
         try nc.err(nc.channels_set_bg_rgb(&chans, box_colors[i]));
-        var plane = planes[i];
+        const plane = planes[i];
         try nc.err(nc.ncplane_set_base(plane, cstr(" "), 0, chans));
         nc.ncplane_erase(plane);
+    }
+}
+
+fn draw_boxes_gradients(planes: [BOX_NUM]*nc.ncplane) !void {
+    var i: usize = 0;
+    while (i < planes.len) : (i += 1) {
+        const plane = planes[i];
+        const ur: u32 = (16777215 | nc.CELL_BGDEFAULT_MASK);
+        const ul: u32 = (box_colors[i] | @intCast(u32, nc.CELL_BGDEFAULT_MASK));
+        const lr: u32 = (box_colors[i] | @intCast(u32, nc.CELL_BGDEFAULT_MASK));
+        const ll: u32 = (0 | nc.CELL_BGDEFAULT_MASK);
+        try nc.err(nc.ncplane_highgradient(plane, ul, ur, ll, lr, nc.ncplane_dim_y(plane) - 1, nc.ncplane_dim_x(plane) - 1));
     }
 }
 
@@ -149,6 +161,31 @@ fn reposition_planes(planes: [BOX_NUM]*nc.ncplane, boxes: [BOX_NUM][4]c_int) !vo
     while (i < planes.len) : (i += 1) {
         try reposition_plane(planes[i], boxes[i]);
     }
+}
+
+fn make_message_box(parent: *nc.ncplane, windowy: c_int, windowx: c_int) !*nc.ncplane {
+    const l1 = "Notcurses by Nick Black et al";
+    const l2 = "Zig lang by Andrew Kelley & community";
+    const l3 = "Liz lang & demo by Jakub Dundalek";
+    const l4 = "Press q to quit";
+    var opts = nc.default_ncplane_options;
+    opts.rows = 5 + 2;
+    opts.cols = l2.len + 4;
+    opts.x = 4;
+    opts.y = windowy - opts.rows - 2;
+    const plane = nc.ncplane_create(parent, &opts).?;
+    var chans: u64 = 0;
+    try nc.err(nc.channels_set_bg_rgb(&chans, 0));
+    try nc.err(nc.channels_set_bg_alpha(&chans, nc.CELL_ALPHA_BLEND));
+    try nc.err(nc.ncplane_set_base(plane, cstr(" "), 0, chans));
+    var border_chans: u64 = 0;
+    try nc.err(nc.channels_set_fg_rgb(&border_chans, c_red));
+    _ = nc.ncplane_rounded_box(plane, 0, border_chans, nc.ncplane_dim_y(plane) - 1, nc.ncplane_dim_x(plane) - 1, 0);
+    try nc.err(nc.ncplane_putstr_yx(plane, 1, 2, cstr(l1)));
+    try nc.err(nc.ncplane_putstr_yx(plane, 2, 2, cstr(l2)));
+    try nc.err(nc.ncplane_putstr_yx(plane, 3, 2, cstr(l3)));
+    try nc.err(nc.ncplane_putstr_yx(plane, 5, 2, cstr(l4)));
+    return plane;
 }
 
 pub fn main() !void {
@@ -235,7 +272,6 @@ pub fn main() !void {
             while (t < (time_start + duration)) : (t = time.get_time_ns()) {
                 var chans: u64 = 0;
                 _ = nc.channels_set_bchannel(&chans, (try transition_rgb(0, box_colors[i], duration, t - time_start)));
-                try nc.err(nc.channels_set_bg_alpha(&chans, nc.CELL_ALPHA_BLEND));
                 try nc.err(nc.ncplane_set_base(plane, cstr(" "), 0, chans));
                 nc.ncplane_erase(plane);
                 try nc.err(nc.notcurses_render(ncs));
@@ -244,15 +280,65 @@ pub fn main() !void {
         }
     }
     {
-        duration = 2.0E8;
+        duration = 1.5E8;
         var i: usize = 0;
         while (i < box_planes.len) : (i += 1) {
+            var plane = box_planes[i];
             time_start = time.get_time_ns();
             t = time_start;
             while (t < (time_start + duration)) : (t = time.get_time_ns()) {
-                try reposition_plane(box_planes[i], transition_box(boxes_arranged[i], boxes_bottom_out[i], duration, t - time_start));
+                const ur: u32 = ((try transition_rgb(box_colors[i], 16777215, duration, t - time_start)) | @intCast(u32, nc.CELL_BGDEFAULT_MASK));
+                const ul: u32 = (box_colors[i] | @intCast(u32, nc.CELL_BGDEFAULT_MASK));
+                const lr: u32 = (box_colors[i] | @intCast(u32, nc.CELL_BGDEFAULT_MASK));
+                const ll: u32 = ((try transition_rgb(box_colors[i], 0, duration, t - time_start)) | @intCast(u32, nc.CELL_BGDEFAULT_MASK));
+                try nc.err(nc.ncplane_highgradient(plane, ul, ur, ll, lr, nc.ncplane_dim_y(plane) - 1, nc.ncplane_dim_x(plane) - 1));
                 try nc.err(nc.notcurses_render(ncs));
                 time.sleep_until_ns(t + step_ns);
+            }
+        }
+    }
+    var message_box: *nc.ncplane = (try make_message_box(n, dimy, dimx));
+    {
+        duration = 3.0E8;
+        time_start = time.get_time_ns();
+        t = time_start;
+        const start_x: c_int = (-nc.ncplane_dim_x(message_box));
+        const end_x: c_int = nc.ncplane_x(message_box);
+        const y = nc.ncplane_y(message_box);
+        while (t < (time_start + duration)) : (t = time.get_time_ns()) {
+            const x: c_int = linear_transition(start_x, end_x, duration, t - time_start);
+            try nc.err(nc.ncplane_move_yx(message_box, y, x));
+            try nc.err(nc.notcurses_render(ncs));
+            time.sleep_until_ns(t + step_ns);
+        }
+        try nc.err(nc.ncplane_move_yx(message_box, y, end_x));
+        try nc.err(nc.notcurses_render(ncs));
+    }
+    outer: {
+        var loop: usize = 0;
+        while (true) : (loop += 1) {
+            duration = 1.0E9;
+            time_start = time.get_time_ns();
+            t = time_start;
+            while (t < (time_start + duration)) : (t = time.get_time_ns()) {
+                var i: usize = 0;
+                while (i < box_planes.len) : (i += 1) {
+                    var plane = box_planes[i];
+                    var i_next = ((i + 1) % BOX_NUM);
+                    const colors = [4]u32{ box_colors[i], 16777215, box_colors[i], 0 };
+                    var corners: [4]u32 = undefined;
+                    var j: usize = 0;
+                    while (j < 4) : (j += 1) {
+                        corners[j] = @intCast(u32, nc.CELL_BGDEFAULT_MASK) | (try transition_rgb(colors[((loop + j) % 4)], colors[((j + loop + 1) % 4)], duration, t - time_start));
+                    }
+                    try nc.err(nc.ncplane_highgradient(plane, corners[0], corners[1], corners[3], corners[2], nc.ncplane_dim_y(plane) - 1, nc.ncplane_dim_x(plane) - 1));
+                }
+                try nc.err(nc.notcurses_render(ncs));
+                time.sleep_until_ns(t + step_ns);
+                var keypress: c_uint = nc.notcurses_getc_nblock(ncs, null);
+                if (keypress == 'q') {
+                    break :outer;
+                }
             }
         }
     }

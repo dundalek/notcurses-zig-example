@@ -74,7 +74,7 @@ pub fn build(b: *Builder) void {
     exe.linkSystemLibrary("ncurses");
     exe.linkSystemLibrary("readline");
     exe.linkSystemLibrary("unistring");
-    // exe.linkSystemLibrary("qrcodegen");
+    exe.linkSystemLibrary("qrcodegen");
 
     const run_cmd = exe.run();
     run_cmd.step.dependOn(b.getInstallStep());
