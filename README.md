@@ -6,6 +6,8 @@
 This is a demo showing how to use it with [Zig](https://ziglang.org/) programming language.  
 Thanks to Zig's seamless C interop the library can be used directly without wrapper bindings.
 
+![Notcurses Zig demo](https://user-images.githubusercontent.com/755611/114319180-d83ac400-9aff-11eb-8b50-3e9a388b91c7.png)
+
 ### Dependencies
 - Install [Notcurses dependencies](https://github.com/dankamongmen/notcurses/blob/master/INSTALL.md), for Debian/Ubuntu:  
   `sudo apt-get install build-essential cmake libncurses-dev libreadline-dev libunistring-dev libqrcodegen-dev pandoc pkg-config`
