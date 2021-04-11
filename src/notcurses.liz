@@ -1,0 +1,51 @@
+;; -*- clojure -*-
+;; FIXME Liz add pub flag for namespace
+(zig* "pub ") (usingnamespace
+                (@cImport (do (@cInclude "notcurses/notcurses.h"))))
+
+(const ^:pub default_notcurses_options
+  ^notcurses_options
+  {:termtype nil
+   :renderfp nil
+   :loglevel ncloglevel_e.NCLOGLEVEL_SILENT
+   :margin_t 0
+   :margin_r 0
+   :margin_b 0
+   :margin_l 0
+   :flags 0})
+
+(const ^:pub default_ncplane_options
+  ^ncplane_options
+  {:y 0
+   :x 0
+   :rows 0
+   :cols 0
+   :userptr nil
+   :name nil
+   :resizecb nil
+   :flags 0
+   :margin_b 0
+   :margin_r 0})
+
+(const default_ncselector_options
+  ^ncselector_options
+  {:title nil
+   :secondary nil
+   :footer nil
+   :items nil
+   :defidx 0
+   :maxdisplay 0
+   :opchannels 0
+   :descchannels 0
+   :titlechannels 0
+   :footchannels 0
+   :boxchannels 0
+   :flags 0})
+
+(var ^u64 cnt 0)
+
+(defn ^!void err [^c_int code]
+  (cond
+    (neg? code) (return error.NotcursesError)))
+    ;; FIXME most notcurses code checks for zero, so positive value would also count as error, need to investigate what to do about positive values
+    ; (pos? code) (return error.NotcursesErrorPositive)))

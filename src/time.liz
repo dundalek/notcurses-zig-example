@@ -1,0 +1,26 @@
+;; -*- clojure -*-
+(const time (@cImport (do (@cInclude "time.h"))))
+
+(const NANOSECS_IN_SEC 1000000000)
+
+(defn ^c_long timespec_to_ns [^*time.timespec ts]
+  (return (+ (* (.-tv_sec ts) NANOSECS_IN_SEC)
+             (.-tv_nsec ts))))
+
+(defn ^void ns_to_timespec [^anytype ns ^*time.timespec ts]
+  (set! (.-tv_sec ts) (@intCast c_long (@divTrunc ns NANOSECS_IN_SEC)))
+  (set! (.-tv_nsec ts) (@intCast c_long (mod ns NANOSECS_IN_SEC))))
+
+(defn ^u64 get_time_ns []
+  (var ^time.timespec now undefined)
+  (set! _ (time.clock_gettime time.CLOCK_MONOTONIC &now))
+  (return (@intCast u64 (timespec_to_ns &now))))
+
+(defn ^void sleep_until_ns [^u64 ns]
+  (var ^time.timespec sleepspec undefined)
+  (ns_to_timespec ns &sleepspec)
+  (set! _ (time.clock_nanosleep time.CLOCK_MONOTONIC time.TIMER_ABSTIME &sleepspec nil)))
+
+(defn ^void sleep_ns [^u64 ns]
+  (sleep_until_ns (+ (get_time_ns) ns)))
+

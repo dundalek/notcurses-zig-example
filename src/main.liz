@@ -1,40 +1,273 @@
 ;; -*- clojure -*-
-(const c (@import "c.zig"))
+(const std (@import "std"))
+(const nc (@import "notcurses.zig"))
+(const time (@import "time.zig"))
 
-(const default_notcurses_options
- ^c.notcurses_options
- {:termtype nil
-  :renderfp nil
-  :loglevel c.ncloglevel_e.NCLOGLEVEL_SILENT
-  :margin_t 0
-  :margin_r 0
-  :margin_b 0
-  :margin_l 0
-  :flags 0})
+(const ^usize BOX_NUM 10)
 
-(defn ^void main []
-  (var ^c.notcurses_options opts default_notcurses_options)
-  (set! (.-flags opts) c.NCOPTION_SUPPRESS_BANNERS)
+(const ^u32 c_red 0xd72c2f)
+(const ^u32 c_yel 0xffd029)
+(const ^u32 c_blu 0x3c497f)
+(const ^u32 c_whi 0xfefefe)
 
-  (var ^*c.notcurses nc (-> (c.notcurses_core_init &opts nil)
-                            (orelse (@panic "notcurses_core_init() failed"))))
+(const box_colors
+  ^"[BOX_NUM]u32"
+  [c_red
+   c_whi
+   c_yel
+   c_whi
+   c_blu
+   c_whi
+   c_blu
+   c_yel
+   c_red
+   c_whi])
+
+(defn- ^"[*c]u8" cstr [^anytype s]
+  ;; hack to cast away const
+  (return (@intToPtr (zig* "[*c]u8") (@ptrToInt s))))
+
+(defn- ^"@TypeOf(start)" linear_transition [^anytype start ^anytype end ^u64 duration ^u64 diff]
+  (return (+ start
+             (@intCast (@TypeOf start)
+                       (@divTrunc (* (- end start)
+                                     (@intCast i64 diff))
+                                  (@intCast i64 duration))))))
+
+(defn- ^!u32 transition_rgb [^u32 start ^u32 end ^u64 duration ^u64 diff]
+  (var ^u32 rgb 0)
+  (var r (linear_transition (@intCast c_int (nc.channel_r start)) (@intCast c_int (nc.channel_r end)) duration diff))
+  (var g (linear_transition (@intCast c_int (nc.channel_g start)) (@intCast c_int (nc.channel_g end)) duration diff))
+  (var b (linear_transition (@intCast c_int (nc.channel_b start)) (@intCast c_int (nc.channel_b end)) duration diff))
+  (try (nc.err (nc.channel_set_rgb8 &rgb r g b)))
+  (return rgb))
+
+(defn- ^"[4]c_int" transition_box [^"[4]c_int" start ^"[4]c_int" end ^u64 duration ^u64 diff]
+  (var ^"[4]c_int" coords undefined)
+  (var ^usize i 0)
+  (while-step (< i coords.len) (inc! i)
+    (aset coords i (linear_transition (aget start i) (aget end i) duration diff)))
+  (return coords))
+
+(defn- ^"[BOX_NUM][4]c_int" make_boxes_start [^anytype dimy ^anytype dimx]
+  (var ^"[BOX_NUM][4]c_int" bs undefined)
+  (var ^usize i 0)
+  (while-step (< i bs.len) (inc! i)
+    (var ^c_int y -1)
+    (var ^c_int x (@divTrunc dimx 2))
+    (aset bs i 0 y)
+    (aset bs i 1 x)
+    (aset bs i 2 (+ y 2))
+    (aset bs i 3 (+ x 4)))
+  (return bs))
+
+(defn- ^"[BOX_NUM][4]c_int" make_boxes_bottom_out [^anytype dimy ^anytype dimx]
+  (var ^"[BOX_NUM][4]c_int" bs undefined)
+  (var ^usize i 0)
+  (while-step (< i bs.len) (inc! i)
+    (var ^c_int y (+ dimy 2))
+    (var ^c_int x (@divTrunc dimx 2))
+    (aset bs i 0 y)
+    (aset bs i 1 x)
+    (aset bs i 2 (+ y 2))
+    (aset bs i 3 (+ x 4)))
+  (return bs))
+
+(defn- ^"[BOX_NUM][4]c_int" make_boxes_arranged [^anytype dimy ^anytype dimx]
+  (var ^c_int x0 0)
+  (var x1 (-> dimx (* 40) (@divFloor 100)))
+  (var x2 (-> dimx (* 55) (@divFloor 100)))
+  (var x3 (-> dimx (* 85) (@divFloor 100)))
+  (var x4 (dec dimx))
+
+  (var ^c_int y0 0)
+  (var y1 (-> dimy (* 18) (@divFloor 100)))
+  (var y2 (-> dimy (* 22) (@divFloor 100)))
+  (var y3 (-> dimy (* 35) (@divFloor 100)))
+  (var y4 (-> dimy (* 55) (@divFloor 100)))
+  (var y5 (-> dimy (* 70) (@divFloor 100)))
+  (var y6 (dec dimy))
+
+  (var bs
+    ^"[BOX_NUM][4]c_int"
+    [[y0 x0 y5 x1]
+     [y5 x0 y6 x1]
+     [y0 x1 y2 x2]
+     [y2 x1 y5 x2]
+     [y5 x1 y6 x2]
+     [y0 x2 y3 x3]
+     [y3 x2 y4 x3]
+     [y4 x2 y6 x4]
+     [y0 x3 y1 x4]
+     [y1 x3 y4 x4]])
+  (return bs))
+
+(defn- ^"[BOX_NUM][4]c_int" make_boxes_grid [^anytype dimy ^anytype dimx]
+  (const ^c_int boxh (@divTrunc dimy 5))
+  (const ^c_int boxw (* boxh 2))
+  (var y0 (-> dimy (* 20) (@divFloor 100)))
+  (var x0 (-> dimx (* 20) (@divFloor 100)))
+  (var ^"[BOX_NUM][4]c_int" bs undefined)
+  (var ^usize i 0)
+  (while-step (< i bs.len) (inc! i)
+    (const ^c_int row (@divFloor (@intCast c_int i) 5))
+    ;; FIXME Liz bug with @mod
+    (const ^c_int col (zig* "@mod(@intCast(c_int, i), 5)"))
+    (const shifted (zero? (zig* "@mod(col, 2)")))
+    (const y (+ y0
+                (* row (+ boxh (@divTrunc boxh 2)))
+                (if shifted (+ (@divTrunc boxh 2) 1) 0)))
+    (const x (+ x0
+                (* col (+ boxw 2))))
+    (aset bs i 0 y)
+    (aset bs i 1 x)
+    (aset bs i 2 (+ y boxh))
+    (aset bs i 3 (+ x boxw)))
+  (return bs))
+
+(defn- ^c_int box_ylen [^"[4]c_int" box]
+  (return (- (aget box 2) (aget box 0) 1)))
+
+(defn- ^c_int box_xlen [^"[4]c_int" box]
+  (return (- (aget box 3) (aget box 1) 2)))
+
+(defn- ^void make_box_planes [^*nc.ncplane n ^"[] *nc.ncplane" planes]
+  (var ^usize i 0)
+  (while-step (< i planes.len) (inc! i)
+    (var opts nc.default_ncplane_options)
+    (set! (.-rows opts) 1)
+    (set! (.-cols opts) 1)
+    (var plane (nc.ncplane_create n &opts))
+    (aset planes i plane.?)))
+
+(defn- ^void draw_boxes_colored [^"[BOX_NUM] *nc.ncplane" planes]
+  (var ^usize i 0)
+  (while-step (< i planes.len) (inc! i)
+    (var ^u64 chans 0)
+    (try (nc.err (nc.channels_set_bg_rgb &chans (aget box_colors i))))
+    (var plane (aget planes i))
+    (try (nc.err (nc.ncplane_set_base plane (cstr " ") 0 chans)))
+    (nc.ncplane_erase plane)))
+
+(defn- ^!void draw_boxes_bordered [^"[BOX_NUM] *nc.ncplane" planes]
+  (var ^usize i 0)
+  (while-step (< i planes.len) (inc! i)
+    (var plane (aget planes i))
+    (nc.ncplane_erase plane)
+    (try (nc.err (nc.ncplane_cursor_move_yx plane 0 0)))
+    ;; Ignoring error (e.g. the dimensions are too small), if the box grows it will be re-drawn when rendering next frames
+    (set! _ (nc.ncplane_rounded_box plane 0 0 (dec (nc.ncplane_dim_y plane)) (dec (nc.ncplane_dim_x plane)) 0))))
+
+(defn- ^!void reposition_plane [^*nc.ncplane plane ^"[4]c_int" box]
+  (try (nc.err (nc.ncplane_move_yx plane (aget box 0) (aget box 1))))
+  (try (nc.err (nc.ncplane_resize_simple plane (box_ylen box) (box_xlen box)))))
+
+(defn- ^!void reposition_planes [^"[BOX_NUM] *nc.ncplane" planes ^"[BOX_NUM][4]c_int" boxes]
+  (var ^usize i 0)
+  (while-step (< i planes.len) (inc! i)
+    (try (reposition_plane (aget planes i) (aget boxes i)))))
+
+(defn ^!void main []
+  (var ^nc.notcurses_options nc_opts nc.default_notcurses_options)
+  ; (set! (.-flags nc_opts) nc.NCOPTION_SUPPRESS_BANNERS)
+  ; (set! (.-loglevel nc_opts) nc.ncloglevel_e.NCLOGLEVEL_ERROR)
+  (var ^*nc.notcurses ncs (-> (nc.notcurses_core_init &nc_opts nil)
+                              (orelse (@panic "notcurses_core_init() failed"))))
+  (defer (set! _ (nc.notcurses_stop ncs)))
+
   (var ^c_int dimy undefined)
   (var ^c_int dimx undefined)
-  (var ^*c.ncplane n (-> (c.notcurses_stddim_yx nc &dimy &dimx)
-                         (orelse (@panic "notcurses_stddim_yx() failed"))))
-  (var ^u8 ch \A)
-  (set! _ (c.ncplane_set_scrolling n true))
-  (while true
-    (var req ^c.timespec {:tv_sec 0 :tv_nsec 1000000})
-    (set! _ (c.nanosleep &req nil))
-    (if (not= (c.ncplane_putchar n ch) 1)
-      (break))
+  (var ^*nc.ncplane n (-> (nc.notcurses_stddim_yx ncs &dimy &dimx)
+                          (orelse (unreachable))))
+  (set! dimx (std.math.max dimx 80))
+  (set! dimy (std.math.max dimy 25))
+  (var ^u64 std_chan 0)
+  (try (nc.err (nc.channels_set_bg_rgb &std_chan 0x000000)))
+  (try (nc.err (nc.ncplane_set_base n (cstr " ") 0 std_chan)))
 
-    (inc! ch)
-    (if (= ch \{)
-      (set! ch \A))
+  (var ^"[BOX_NUM] *nc.ncplane" box_planes undefined)
+  (make_box_planes n &box_planes)
+  (var ^"[BOX_NUM][4]c_int" boxes_start (make_boxes_start dimy dimx))
+  (var ^"[BOX_NUM][4]c_int" boxes_bottom_out (make_boxes_bottom_out dimy dimx))
+  (var ^"[BOX_NUM][4]c_int" boxes_grid (make_boxes_grid dimy dimx))
+  (var ^"[BOX_NUM][4]c_int" boxes_arranged (make_boxes_arranged dimy dimx))
 
-    (if (not= (c.notcurses_render nc) 0)
-      (break)))
+  (var ^u64 time_start undefined)
+  (var ^u64 t undefined)
+  (var ^u64 duration undefined)
+  (const ^u64 step_ns 16e6)
 
-  (set! _ (c.notcurses_stop nc)))
+  (do
+   (set! duration 300e6)
+   (var ^usize i 0)
+   (while-step (< i box_planes.len) (inc! i)
+     (set! time_start (time.get_time_ns))
+     (set! t time_start)
+     (while-step (< t (+ time_start duration)) (set! t (time.get_time_ns))
+       (try (reposition_plane (aget box_planes i) (transition_box (aget boxes_start i) (aget boxes_grid i) duration (- t time_start))))
+       (try (draw_boxes_bordered box_planes))
+       (try (nc.err (nc.notcurses_render ncs)))
+       (time.sleep_until_ns (+ t step_ns)))))
+
+  (try (reposition_planes box_planes boxes_grid))
+  (try (draw_boxes_bordered box_planes))
+  (try (nc.err (nc.notcurses_render ncs)))
+
+  (do
+    (set! duration 1000e6)
+    (set! time_start (time.get_time_ns))
+    (set! t time_start)
+    (while-step (< t (+ time_start duration)) (set! t (time.get_time_ns))
+      (var ^usize i 0)
+      (while-step (< i box_planes.len) (inc! i)
+        (try (reposition_plane (aget box_planes i) (transition_box (aget boxes_grid i) (aget boxes_arranged i) duration (- t time_start)))))
+      (try (draw_boxes_bordered box_planes))
+      (try (nc.err (nc.notcurses_render ncs)))
+      (time.sleep_until_ns (+ t step_ns))))
+
+  (try (reposition_planes box_planes boxes_arranged))
+  (try (draw_boxes_bordered box_planes))
+  (try (nc.err (nc.notcurses_render ncs)))
+
+  (do
+    (set! duration 150e6)
+    (var ^usize i 0)
+    (while-step (< i box_planes.len) (inc! i)
+      (var plane (aget box_planes i))
+      (set! time_start (time.get_time_ns))
+      (set! t time_start)
+      (while-step (< t (+ time_start duration)) (set! t (time.get_time_ns))
+        (var ^u64 chans 0)
+        (set! _ (nc.channels_set_bchannel &chans (try (transition_rgb 0x333333 0x000000 duration (- t time_start)))))
+        (set! _ (nc.channels_set_fchannel &chans (try (transition_rgb 0xF2F2F2 0x000000 duration (- t time_start)))))
+        (try (nc.err (nc.ncplane_set_base plane (cstr " ") 0 chans)))
+        (try (draw_boxes_bordered box_planes))
+        (try (nc.err (nc.notcurses_render ncs)))
+        (time.sleep_until_ns (+ t step_ns)))))
+
+  (do
+    (set! duration 150e6)
+    (var ^usize i 0)
+    (while-step (< i box_planes.len) (inc! i)
+      (var plane (aget box_planes i))
+      (set! time_start (time.get_time_ns))
+      (set! t time_start)
+      (while-step (< t (+ time_start duration)) (set! t (time.get_time_ns))
+        (var ^u64 chans 0)
+        (set! _ (nc.channels_set_bchannel &chans (try (transition_rgb 0x000000 (aget box_colors i) duration (- t time_start)))))
+        (try (nc.err (nc.channels_set_bg_alpha &chans nc.CELL_ALPHA_BLEND)))
+        (try (nc.err (nc.ncplane_set_base plane (cstr " ") 0 chans)))
+        (nc.ncplane_erase plane)
+        (try (nc.err (nc.notcurses_render ncs)))
+        (time.sleep_until_ns (+ t step_ns)))))
+
+  (do
+   (set! duration 200e6)
+   (var ^usize i 0)
+   (while-step (< i box_planes.len) (inc! i)
+     (set! time_start (time.get_time_ns))
+     (set! t time_start)
+     (while-step (< t (+ time_start duration)) (set! t (time.get_time_ns))
+       (try (reposition_plane (aget box_planes i) (transition_box (aget boxes_arranged i) (aget boxes_bottom_out i) duration (- t time_start))))
+       (try (nc.err (nc.notcurses_render ncs)))
+       (time.sleep_until_ns (+ t step_ns))))))

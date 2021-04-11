@@ -1,33 +1,259 @@
-const c = @import("c.zig");
-const default_notcurses_options = c.notcurses_options{
-    .loglevel = c.ncloglevel_e.NCLOGLEVEL_SILENT,
-    .termtype = null,
-    .margin_r = 0,
-    .margin_b = 0,
-    .flags = 0,
-    .renderfp = null,
-    .margin_t = 0,
-    .margin_l = 0,
-};
-pub fn main() void {
-    var opts: c.notcurses_options = default_notcurses_options;
-    opts.flags = c.NCOPTION_SUPPRESS_BANNERS;
-    var nc: *c.notcurses = (c.notcurses_core_init(&opts, null) orelse @panic("notcurses_core_init() failed"));
+const std = @import("std");
+const nc = @import("notcurses.zig");
+const time = @import("time.zig");
+const BOX_NUM: usize = 10;
+const c_red: u32 = 14101551;
+const c_yel: u32 = 16764969;
+const c_blu: u32 = 3950975;
+const c_whi: u32 = 16711422;
+const box_colors = [BOX_NUM]u32{ c_red, c_whi, c_yel, c_whi, c_blu, c_whi, c_blu, c_yel, c_red, c_whi };
+fn cstr(s: anytype) [*c]u8 {
+    return @intToPtr([*c]u8, @ptrToInt(s));
+}
+
+fn linear_transition(start: anytype, end: anytype, duration: u64, diff: u64) @TypeOf(start) {
+    return (start + @intCast(@TypeOf(start), @divTrunc((end - start) * @intCast(i64, diff), @intCast(i64, duration))));
+}
+
+fn transition_rgb(start: u32, end: u32, duration: u64, diff: u64) !u32 {
+    var rgb: u32 = 0;
+    var r = linear_transition(@intCast(c_int, nc.channel_r(start)), @intCast(c_int, nc.channel_r(end)), duration, diff);
+    var g = linear_transition(@intCast(c_int, nc.channel_g(start)), @intCast(c_int, nc.channel_g(end)), duration, diff);
+    var b = linear_transition(@intCast(c_int, nc.channel_b(start)), @intCast(c_int, nc.channel_b(end)), duration, diff);
+    try nc.err(nc.channel_set_rgb8(&rgb, r, g, b));
+    return rgb;
+}
+
+fn transition_box(start: [4]c_int, end: [4]c_int, duration: u64, diff: u64) [4]c_int {
+    var coords: [4]c_int = undefined;
+    var i: usize = 0;
+    while (i < coords.len) : (i += 1) {
+        coords[i] = linear_transition(start[i], end[i], duration, diff);
+    }
+    return coords;
+}
+
+fn make_boxes_start(dimy: anytype, dimx: anytype) [BOX_NUM][4]c_int {
+    var bs: [BOX_NUM][4]c_int = undefined;
+    var i: usize = 0;
+    while (i < bs.len) : (i += 1) {
+        var y: c_int = -1;
+        var x: c_int = @divTrunc(dimx, 2);
+        bs[i][0] = y;
+        bs[i][1] = x;
+        bs[i][2] = y + 2;
+        bs[i][3] = x + 4;
+    }
+    return bs;
+}
+
+fn make_boxes_bottom_out(dimy: anytype, dimx: anytype) [BOX_NUM][4]c_int {
+    var bs: [BOX_NUM][4]c_int = undefined;
+    var i: usize = 0;
+    while (i < bs.len) : (i += 1) {
+        var y: c_int = (dimy + 2);
+        var x: c_int = @divTrunc(dimx, 2);
+        bs[i][0] = y;
+        bs[i][1] = x;
+        bs[i][2] = y + 2;
+        bs[i][3] = x + 4;
+    }
+    return bs;
+}
+
+fn make_boxes_arranged(dimy: anytype, dimx: anytype) [BOX_NUM][4]c_int {
+    var x0: c_int = 0;
+    var x1 = @divFloor(dimx * 40, 100);
+    var x2 = @divFloor(dimx * 55, 100);
+    var x3 = @divFloor(dimx * 85, 100);
+    var x4 = (dimx - 1);
+    var y0: c_int = 0;
+    var y1 = @divFloor(dimy * 18, 100);
+    var y2 = @divFloor(dimy * 22, 100);
+    var y3 = @divFloor(dimy * 35, 100);
+    var y4 = @divFloor(dimy * 55, 100);
+    var y5 = @divFloor(dimy * 70, 100);
+    var y6 = (dimy - 1);
+    var bs = [BOX_NUM][4]c_int{ .{ y0, x0, y5, x1 }, .{ y5, x0, y6, x1 }, .{ y0, x1, y2, x2 }, .{ y2, x1, y5, x2 }, .{ y5, x1, y6, x2 }, .{ y0, x2, y3, x3 }, .{ y3, x2, y4, x3 }, .{ y4, x2, y6, x4 }, .{ y0, x3, y1, x4 }, .{ y1, x3, y4, x4 } };
+    return bs;
+}
+
+fn make_boxes_grid(dimy: anytype, dimx: anytype) [BOX_NUM][4]c_int {
+    const boxh: c_int = @divTrunc(dimy, 5);
+    const boxw: c_int = (boxh * 2);
+    var y0 = @divFloor(dimy * 20, 100);
+    var x0 = @divFloor(dimx * 20, 100);
+    var bs: [BOX_NUM][4]c_int = undefined;
+    var i: usize = 0;
+    while (i < bs.len) : (i += 1) {
+        const row: c_int = @divFloor(@intCast(c_int, i), 5);
+        const col: c_int = @mod(@intCast(c_int, i), 5);
+        const shifted = (@mod(col, 2) == 0);
+        const y = (y0 + (row * (boxh + @divTrunc(boxh, 2))) + if (shifted) @divTrunc(boxh, 2) + 1 else 0);
+        const x = (x0 + (col * (boxw + 2)));
+        bs[i][0] = y;
+        bs[i][1] = x;
+        bs[i][2] = y + boxh;
+        bs[i][3] = x + boxw;
+    }
+    return bs;
+}
+
+fn box_ylen(box: [4]c_int) c_int {
+    return (box[2] - box[0] - 1);
+}
+
+fn box_xlen(box: [4]c_int) c_int {
+    return (box[3] - box[1] - 2);
+}
+
+fn make_box_planes(n: *nc.ncplane, planes: []*nc.ncplane) void {
+    var i: usize = 0;
+    while (i < planes.len) : (i += 1) {
+        var opts = nc.default_ncplane_options;
+        opts.rows = 1;
+        opts.cols = 1;
+        var plane = nc.ncplane_create(n, &opts);
+        planes[i] = plane.?;
+    }
+}
+
+fn draw_boxes_colored(planes: [BOX_NUM]*nc.ncplane) void {
+    var i: usize = 0;
+    while (i < planes.len) : (i += 1) {
+        var chans: u64 = 0;
+        try nc.err(nc.channels_set_bg_rgb(&chans, box_colors[i]));
+        var plane = planes[i];
+        try nc.err(nc.ncplane_set_base(plane, cstr(" "), 0, chans));
+        nc.ncplane_erase(plane);
+    }
+}
+
+fn draw_boxes_bordered(planes: [BOX_NUM]*nc.ncplane) !void {
+    var i: usize = 0;
+    while (i < planes.len) : (i += 1) {
+        var plane = planes[i];
+        nc.ncplane_erase(plane);
+        try nc.err(nc.ncplane_cursor_move_yx(plane, 0, 0));
+        _ = nc.ncplane_rounded_box(plane, 0, 0, nc.ncplane_dim_y(plane) - 1, nc.ncplane_dim_x(plane) - 1, 0);
+    }
+}
+
+fn reposition_plane(plane: *nc.ncplane, box: [4]c_int) !void {
+    try nc.err(nc.ncplane_move_yx(plane, box[0], box[1]));
+    try nc.err(nc.ncplane_resize_simple(plane, box_ylen(box), box_xlen(box)));
+}
+
+fn reposition_planes(planes: [BOX_NUM]*nc.ncplane, boxes: [BOX_NUM][4]c_int) !void {
+    var i: usize = 0;
+    while (i < planes.len) : (i += 1) {
+        try reposition_plane(planes[i], boxes[i]);
+    }
+}
+
+pub fn main() !void {
+    var nc_opts: nc.notcurses_options = nc.default_notcurses_options;
+    var ncs: *nc.notcurses = (nc.notcurses_core_init(&nc_opts, null) orelse @panic("notcurses_core_init() failed"));
+    defer _ = nc.notcurses_stop(ncs);
     var dimy: c_int = undefined;
     var dimx: c_int = undefined;
-    var n: *c.ncplane = (c.notcurses_stddim_yx(nc, &dimy, &dimx) orelse @panic("notcurses_stddim_yx() failed"));
-    var ch: u8 = 'A';
-    _ = c.ncplane_set_scrolling(n, true);
-    while (true) {
-        var req = c.timespec{
-            .tv_sec = 0,
-            .tv_nsec = 1000000,
-        };
-        _ = c.nanosleep(&req, null);
-        if (c.ncplane_putchar(n, ch) != 1) break;
-        ch += 1;
-        if (ch == '{') ch = 'A';
-        if (c.notcurses_render(nc) != 0) break;
+    var n: *nc.ncplane = (nc.notcurses_stddim_yx(ncs, &dimy, &dimx) orelse unreachable);
+    dimx = std.math.max(dimx, 80);
+    dimy = std.math.max(dimy, 25);
+    var std_chan: u64 = 0;
+    try nc.err(nc.channels_set_bg_rgb(&std_chan, 0));
+    try nc.err(nc.ncplane_set_base(n, cstr(" "), 0, std_chan));
+    var box_planes: [BOX_NUM]*nc.ncplane = undefined;
+    make_box_planes(n, &box_planes);
+    var boxes_start: [BOX_NUM][4]c_int = make_boxes_start(dimy, dimx);
+    var boxes_bottom_out: [BOX_NUM][4]c_int = make_boxes_bottom_out(dimy, dimx);
+    var boxes_grid: [BOX_NUM][4]c_int = make_boxes_grid(dimy, dimx);
+    var boxes_arranged: [BOX_NUM][4]c_int = make_boxes_arranged(dimy, dimx);
+    var time_start: u64 = undefined;
+    var t: u64 = undefined;
+    var duration: u64 = undefined;
+    const step_ns: u64 = 1.6E7;
+    {
+        duration = 3.0E8;
+        var i: usize = 0;
+        while (i < box_planes.len) : (i += 1) {
+            time_start = time.get_time_ns();
+            t = time_start;
+            while (t < (time_start + duration)) : (t = time.get_time_ns()) {
+                try reposition_plane(box_planes[i], transition_box(boxes_start[i], boxes_grid[i], duration, t - time_start));
+                try draw_boxes_bordered(box_planes);
+                try nc.err(nc.notcurses_render(ncs));
+                time.sleep_until_ns(t + step_ns);
+            }
+        }
     }
-    _ = c.notcurses_stop(nc);
+    try reposition_planes(box_planes, boxes_grid);
+    try draw_boxes_bordered(box_planes);
+    try nc.err(nc.notcurses_render(ncs));
+    {
+        duration = 1.0E9;
+        time_start = time.get_time_ns();
+        t = time_start;
+        while (t < (time_start + duration)) : (t = time.get_time_ns()) {
+            var i: usize = 0;
+            while (i < box_planes.len) : (i += 1) {
+                try reposition_plane(box_planes[i], transition_box(boxes_grid[i], boxes_arranged[i], duration, t - time_start));
+            }
+            try draw_boxes_bordered(box_planes);
+            try nc.err(nc.notcurses_render(ncs));
+            time.sleep_until_ns(t + step_ns);
+        }
+    }
+    try reposition_planes(box_planes, boxes_arranged);
+    try draw_boxes_bordered(box_planes);
+    try nc.err(nc.notcurses_render(ncs));
+    {
+        duration = 1.5E8;
+        var i: usize = 0;
+        while (i < box_planes.len) : (i += 1) {
+            var plane = box_planes[i];
+            time_start = time.get_time_ns();
+            t = time_start;
+            while (t < (time_start + duration)) : (t = time.get_time_ns()) {
+                var chans: u64 = 0;
+                _ = nc.channels_set_bchannel(&chans, (try transition_rgb(3355443, 0, duration, t - time_start)));
+                _ = nc.channels_set_fchannel(&chans, (try transition_rgb(15921906, 0, duration, t - time_start)));
+                try nc.err(nc.ncplane_set_base(plane, cstr(" "), 0, chans));
+                try draw_boxes_bordered(box_planes);
+                try nc.err(nc.notcurses_render(ncs));
+                time.sleep_until_ns(t + step_ns);
+            }
+        }
+    }
+    {
+        duration = 1.5E8;
+        var i: usize = 0;
+        while (i < box_planes.len) : (i += 1) {
+            var plane = box_planes[i];
+            time_start = time.get_time_ns();
+            t = time_start;
+            while (t < (time_start + duration)) : (t = time.get_time_ns()) {
+                var chans: u64 = 0;
+                _ = nc.channels_set_bchannel(&chans, (try transition_rgb(0, box_colors[i], duration, t - time_start)));
+                try nc.err(nc.channels_set_bg_alpha(&chans, nc.CELL_ALPHA_BLEND));
+                try nc.err(nc.ncplane_set_base(plane, cstr(" "), 0, chans));
+                nc.ncplane_erase(plane);
+                try nc.err(nc.notcurses_render(ncs));
+                time.sleep_until_ns(t + step_ns);
+            }
+        }
+    }
+    {
+        duration = 2.0E8;
+        var i: usize = 0;
+        while (i < box_planes.len) : (i += 1) {
+            time_start = time.get_time_ns();
+            t = time_start;
+            while (t < (time_start + duration)) : (t = time.get_time_ns()) {
+                try reposition_plane(box_planes[i], transition_box(boxes_arranged[i], boxes_bottom_out[i], duration, t - time_start));
+                try nc.err(nc.notcurses_render(ncs));
+                time.sleep_until_ns(t + step_ns);
+            }
+        }
+    }
 }
