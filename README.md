@@ -1,0 +1,42 @@
+
+# Notcurses Zig example
+
+[Notcurses](https://notcurses.com/) is a moderm library for building terminal UIs with advanced graphics support.
+
+This is a demo showing how to use it with [Zig](https://ziglang.org/) programming language.  
+Thanks to Zig's seamless C interop the library can be used directly without wrapper bindings.
+
+### Dependencies
+- Install [Notcurses dependencies](https://github.com/dankamongmen/notcurses/blob/master/INSTALL.md), for Debian/Ubuntu:  
+  `sudo apt-get install build-essential cmake libncurses-dev libreadline-dev libunistring-dev libqrcodegen-dev pandoc pkg-config`
+- [Install Zig](https://ziglang.org/download/), requires zig-0.8.0-dev from master builds (latest stable v0.7.1 has some issues with translate-c) 
+- Get Notcurses to compile from sources (since distributions don't often package latest versions):
+```sh
+git clone https://github.com/dankamongmen/notcurses.git deps/notcurses
+cd deps/notcurses
+mkdir build && cd build
+cmake -DUSE_MULTIMEDIA=none .. 
+# We just need `cmake` to generate some headers, no need to actually `make` since rest will be handled by Zig
+# In case of errors, try `git checkout v2.2.5` and re-run cmake as I tested it with this version.
+```
+
+### Build and run
+
+Build and run the demo:
+```sh
+zig build run
+```
+
+Or build and run the binary separately:
+```sh
+zig build
+./zig-cache/run/demo
+```
+
+### Liz source
+
+The source of this demo is actually written in [Liz](https://github.com/dundalek/liz), which is Zig dialect with [lispy syntax](https://en.m.wikipedia.org/wiki/S-expression) that transpiles down to Zig code. If you feel adventurous to explore land of parentheses you can  [download Liz](https://github.com/dundalek/liz/releases/latest) and compile sources with:
+
+```sh
+liz src/*.liz && zig build
+```
