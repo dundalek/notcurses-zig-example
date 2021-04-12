@@ -23,10 +23,6 @@
    c_red
    c_whi])
 
-(defn- ^"[*c]u8" cstr [^anytype s]
-  ;; hack to cast away const
-  (return (@intToPtr (zig* "[*c]u8") (@ptrToInt s))))
-
 (defn- ^"@TypeOf(start)" linear_transition [^anytype start ^anytype end ^u64 duration ^u64 diff]
   (return (+ start
              (@intCast (@TypeOf start)
@@ -148,7 +144,7 @@
     (var ^u64 chans 0)
     (try (nc.err (nc.channels_set_bg_rgb &chans (aget box_colors i))))
     (const plane (aget planes i))
-    (try (nc.err (nc.ncplane_set_base plane (cstr " ") 0 chans)))
+    (try (nc.err (nc.ncplane_set_base plane " " 0 chans)))
     (nc.ncplane_erase plane)))
 
 (defn- ^!void draw_boxes_gradients [^"[BOX_NUM] *nc.ncplane" planes]
@@ -195,16 +191,16 @@
   (var ^u64 chans 0)
   (try (nc.err (nc.channels_set_bg_rgb &chans 0x000000)))
   (try (nc.err (nc.channels_set_bg_alpha &chans nc.CELL_ALPHA_BLEND)))
-  (try (nc.err (nc.ncplane_set_base plane (cstr " ") 0 chans)))
+  (try (nc.err (nc.ncplane_set_base plane " " 0 chans)))
 
   (var ^u64 border_chans 0)
   (try (nc.err (nc.channels_set_fg_rgb &border_chans c_red)))
   (set! _ (nc.ncplane_rounded_box plane 0 border_chans (dec (nc.ncplane_dim_y plane)) (dec (nc.ncplane_dim_x plane)) 0))
 
-  (try (nc.err (nc.ncplane_putstr_yx plane 1 2 (cstr l1))))
-  (try (nc.err (nc.ncplane_putstr_yx plane 2 2 (cstr l2))))
-  (try (nc.err (nc.ncplane_putstr_yx plane 3 2 (cstr l3))))
-  (try (nc.err (nc.ncplane_putstr_yx plane 5 2 (cstr l4))))
+  (try (nc.err (nc.ncplane_putstr_yx plane 1 2 l1)))
+  (try (nc.err (nc.ncplane_putstr_yx plane 2 2 l2)))
+  (try (nc.err (nc.ncplane_putstr_yx plane 3 2 l3)))
+  (try (nc.err (nc.ncplane_putstr_yx plane 5 2 l4)))
 
   (return plane))
 
@@ -224,7 +220,7 @@
   (set! dimy (std.math.max dimy 25))
   (var ^u64 std_chan 0)
   (try (nc.err (nc.channels_set_bg_rgb &std_chan 0x000000)))
-  (try (nc.err (nc.ncplane_set_base n (cstr " ") 0 std_chan)))
+  (try (nc.err (nc.ncplane_set_base n " " 0 std_chan)))
 
   (var ^"[BOX_NUM] *nc.ncplane" box_planes undefined)
   (make_box_planes n &box_planes)
@@ -281,7 +277,7 @@
         (var ^u64 chans 0)
         (set! _ (nc.channels_set_bchannel &chans (try (transition_rgb 0x333333 0x000000 duration (- t time_start)))))
         (set! _ (nc.channels_set_fchannel &chans (try (transition_rgb 0xF2F2F2 0x000000 duration (- t time_start)))))
-        (try (nc.err (nc.ncplane_set_base plane (cstr " ") 0 chans)))
+        (try (nc.err (nc.ncplane_set_base plane " " 0 chans)))
         (try (draw_boxes_bordered box_planes))
         (try (nc.err (nc.notcurses_render ncs)))
         (time.sleep_until_ns (+ t step_ns)))))
@@ -296,7 +292,7 @@
       (while-step (< t (+ time_start duration)) (set! t (time.get_time_ns))
         (var ^u64 chans 0)
         (set! _ (nc.channels_set_bchannel &chans (try (transition_rgb 0x000000 (aget box_colors i) duration (- t time_start)))))
-        (try (nc.err (nc.ncplane_set_base plane (cstr " ") 0 chans)))
+        (try (nc.err (nc.ncplane_set_base plane " " 0 chans)))
         (nc.ncplane_erase plane)
         (try (nc.err (nc.notcurses_render ncs)))
         (time.sleep_until_ns (+ t step_ns)))))
