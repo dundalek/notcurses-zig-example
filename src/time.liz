@@ -1,7 +1,7 @@
 ;; -*- clojure -*-
 (const time (@cImport (do (@cInclude "time.h"))))
 
-(const NANOSECS_IN_SEC 1000000000)
+(const ^:pub NANOSECS_IN_SEC 1000000000)
 
 (defn ^c_long timespec_to_ns [^*time.timespec ts]
   (return (+ (* (.-tv_sec ts) NANOSECS_IN_SEC)

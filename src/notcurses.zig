@@ -38,6 +38,7 @@ const default_ncselector_options = ncselector_options{
     .descchannels = 0,
 };
 var cnt: u64 = 0;
+pub const Error = error{NotcursesError};
 pub fn err(code: c_int) !void {
-    if (code < 0) return error.NotcursesError;
+    if (code < 0) return Error.NotcursesError;
 }

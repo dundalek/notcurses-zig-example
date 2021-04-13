@@ -44,8 +44,10 @@
 
 (var ^u64 cnt 0)
 
+(const ^:pub Error (error NotcursesError))
+
 (defn ^!void err [^c_int code]
   (cond
-    (neg? code) (return error.NotcursesError)))
+    (neg? code) (return Error.NotcursesError)))
     ;; FIXME most notcurses code checks for zero, so positive value would also count as error, need to investigate what to do about positive values
     ; (pos? code) (return error.NotcursesErrorPositive)))

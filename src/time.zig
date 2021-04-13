@@ -1,7 +1,7 @@
 const time = @cImport({
     @cInclude("time.h");
 });
-const NANOSECS_IN_SEC = 1000000000;
+pub const NANOSECS_IN_SEC = 1000000000;
 pub fn timespec_to_ns(ts: *time.timespec) c_long {
     return ((ts.tv_sec * NANOSECS_IN_SEC) + ts.tv_nsec);
 }
