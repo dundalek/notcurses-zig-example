@@ -22,37 +22,43 @@ fn transition_rgb(start: u32, end: u32, duration: u64, diff: u64) u32 {
 
 fn transition_box(start: [4]c_int, end: [4]c_int, duration: u64, diff: u64) [4]c_int {
     var coords: [4]c_int = undefined;
-    var i: usize = 0;
-    while (i < coords.len) : (i += 1) {
-        coords[i] = linear_transition(start[i], end[i], duration, diff);
+    {
+        var i: usize = 0;
+        while (i < coords.len) : (i += 1) {
+            coords[i] = linear_transition(start[i], end[i], duration, diff);
+        }
     }
     return coords;
 }
 
 fn make_boxes_start(dimy: anytype, dimx: anytype) [BOX_NUM][4]c_int {
     var bs: [BOX_NUM][4]c_int = undefined;
-    var i: usize = 0;
-    while (i < bs.len) : (i += 1) {
-        var y: c_int = -1;
-        var x: c_int = @divTrunc(dimx, 2);
-        bs[i][0] = y;
-        bs[i][1] = x;
-        bs[i][2] = y + 2;
-        bs[i][3] = x + 4;
+    {
+        var i: usize = 0;
+        while (i < bs.len) : (i += 1) {
+            var y: c_int = -1;
+            var x: c_int = @divTrunc(dimx, 2);
+            bs[i][0] = y;
+            bs[i][1] = x;
+            bs[i][2] = y + 2;
+            bs[i][3] = x + 4;
+        }
     }
     return bs;
 }
 
 fn make_boxes_bottom_out(dimy: anytype, dimx: anytype) [BOX_NUM][4]c_int {
     var bs: [BOX_NUM][4]c_int = undefined;
-    var i: usize = 0;
-    while (i < bs.len) : (i += 1) {
-        var y: c_int = (dimy + 4);
-        var x: c_int = @divTrunc(dimx, 2);
-        bs[i][0] = y;
-        bs[i][1] = x;
-        bs[i][2] = y + 2;
-        bs[i][3] = x + 4;
+    {
+        var i: usize = 0;
+        while (i < bs.len) : (i += 1) {
+            var y: c_int = (dimy + 4);
+            var x: c_int = @divTrunc(dimx, 2);
+            bs[i][0] = y;
+            bs[i][1] = x;
+            bs[i][2] = y + 2;
+            bs[i][3] = x + 4;
+        }
     }
     return bs;
 }
@@ -80,17 +86,19 @@ fn make_boxes_grid(dimy: anytype, dimx: anytype) [BOX_NUM][4]c_int {
     var y0 = @divFloor(dimy * 20, 100);
     var x0 = @divFloor(dimx * 20, 100);
     var bs: [BOX_NUM][4]c_int = undefined;
-    var i: usize = 0;
-    while (i < bs.len) : (i += 1) {
-        const row: c_int = @divFloor(@intCast(c_int, i), 5);
-        const col: c_int = @mod(@intCast(c_int, i), 5);
-        const shifted = (@mod(col, 2) == 0);
-        const y = (y0 + (row * (boxh + @divTrunc(boxh, 2))) + if (shifted) @divTrunc(boxh, 2) + 1 else 0);
-        const x = (x0 + (col * (boxw + 2)));
-        bs[i][0] = y;
-        bs[i][1] = x;
-        bs[i][2] = y + boxh;
-        bs[i][3] = x + boxw;
+    {
+        var i: usize = 0;
+        while (i < bs.len) : (i += 1) {
+            const row: c_int = @divFloor(@intCast(c_int, i), 5);
+            const col: c_int = @mod(@intCast(c_int, i), 5);
+            const shifted = (@mod(col, 2) == 0);
+            const y = (y0 + (row * (boxh + @divTrunc(boxh, 2))) + if (shifted) @divTrunc(boxh, 2) + 1 else 0);
+            const x = (x0 + (col * (boxw + 2)));
+            bs[i][0] = y;
+            bs[i][1] = x;
+            bs[i][2] = y + boxh;
+            bs[i][3] = x + boxw;
+        }
     }
     return bs;
 }
@@ -104,46 +112,54 @@ fn box_xlen(box: [4]c_int) c_int {
 }
 
 fn make_box_planes(n: *nc.ncplane, planes: []*nc.ncplane) void {
-    var i: usize = 0;
-    while (i < planes.len) : (i += 1) {
-        var opts = nc.default_ncplane_options;
-        opts.rows = 1;
-        opts.cols = 1;
-        const plane = nc.ncplane_create(n, &opts);
-        planes[i] = plane.?;
+    {
+        var i: usize = 0;
+        while (i < planes.len) : (i += 1) {
+            var opts = nc.default_ncplane_options;
+            opts.rows = 1;
+            opts.cols = 1;
+            const plane = nc.ncplane_create(n, &opts);
+            planes[i] = plane.?;
+        }
     }
 }
 
 fn draw_boxes_colored(planes: [BOX_NUM]*nc.ncplane) !void {
-    var i: usize = 0;
-    while (i < planes.len) : (i += 1) {
-        var chans: u64 = 0;
-        try nc.err(nc.channels_set_bg_rgb(&chans, box_colors[i]));
-        const plane = planes[i];
-        try nc.err(nc.ncplane_set_base(plane, " ", 0, chans));
-        nc.ncplane_erase(plane);
+    {
+        var i: usize = 0;
+        while (i < planes.len) : (i += 1) {
+            var chans: u64 = 0;
+            try nc.err(nc.channels_set_bg_rgb(&chans, box_colors[i]));
+            const plane = planes[i];
+            try nc.err(nc.ncplane_set_base(plane, " ", 0, chans));
+            nc.ncplane_erase(plane);
+        }
     }
 }
 
 fn draw_boxes_gradients(planes: [BOX_NUM]*nc.ncplane) !void {
-    var i: usize = 0;
-    while (i < planes.len) : (i += 1) {
-        const plane = planes[i];
-        const ur: u32 = (16777215 | nc.CELL_BGDEFAULT_MASK);
-        const ul: u32 = (box_colors[i] | @intCast(u32, nc.CELL_BGDEFAULT_MASK));
-        const lr: u32 = (box_colors[i] | @intCast(u32, nc.CELL_BGDEFAULT_MASK));
-        const ll: u32 = (0 | nc.CELL_BGDEFAULT_MASK);
-        try nc.err(nc.ncplane_highgradient(plane, ul, ur, ll, lr, nc.ncplane_dim_y(plane) - 1, nc.ncplane_dim_x(plane) - 1));
+    {
+        var i: usize = 0;
+        while (i < planes.len) : (i += 1) {
+            const plane = planes[i];
+            const ur: u32 = (16777215 | nc.CELL_BGDEFAULT_MASK);
+            const ul: u32 = (box_colors[i] | @intCast(u32, nc.CELL_BGDEFAULT_MASK));
+            const lr: u32 = (box_colors[i] | @intCast(u32, nc.CELL_BGDEFAULT_MASK));
+            const ll: u32 = (0 | nc.CELL_BGDEFAULT_MASK);
+            try nc.err(nc.ncplane_highgradient(plane, ul, ur, ll, lr, nc.ncplane_dim_y(plane) - 1, nc.ncplane_dim_x(plane) - 1));
+        }
     }
 }
 
 fn draw_boxes_bordered(planes: [BOX_NUM]*nc.ncplane) !void {
-    var i: usize = 0;
-    while (i < planes.len) : (i += 1) {
-        var plane = planes[i];
-        nc.ncplane_erase(plane);
-        try nc.err(nc.ncplane_cursor_move_yx(plane, 0, 0));
-        _ = nc.ncplane_rounded_box(plane, 0, 0, nc.ncplane_dim_y(plane) - 1, nc.ncplane_dim_x(plane) - 1, 0);
+    {
+        var i: usize = 0;
+        while (i < planes.len) : (i += 1) {
+            var plane = planes[i];
+            nc.ncplane_erase(plane);
+            try nc.err(nc.ncplane_cursor_move_yx(plane, 0, 0));
+            _ = nc.ncplane_rounded_box(plane, 0, 0, nc.ncplane_dim_y(plane) - 1, nc.ncplane_dim_x(plane) - 1, 0);
+        }
     }
 }
 
@@ -153,9 +169,11 @@ fn reposition_plane(plane: *nc.ncplane, box: [4]c_int) !void {
 }
 
 fn reposition_planes(planes: [BOX_NUM]*nc.ncplane, boxes: [BOX_NUM][4]c_int) !void {
-    var i: usize = 0;
-    while (i < planes.len) : (i += 1) {
-        try reposition_plane(planes[i], boxes[i]);
+    {
+        var i: usize = 0;
+        while (i < planes.len) : (i += 1) {
+            try reposition_plane(planes[i], boxes[i]);
+        }
     }
 }
 
@@ -208,9 +226,11 @@ fn run_transition(ncs: *nc.notcurses, duration: u64, ctx: anytype, render: fn (@
 }
 
 fn run_serial_transition(ncs: *nc.notcurses, duration: u64, render: fn (usize, u64, u64) nc.Error!void) !void {
-    var i: usize = 0;
-    while (i < BOX_NUM) : (i += 1) {
-        try run_transition(ncs, duration, i, render);
+    {
+        var i: usize = 0;
+        while (i < BOX_NUM) : (i += 1) {
+            try run_transition(ncs, duration, i, render);
+        }
     }
 }
 
@@ -239,9 +259,11 @@ pub fn main() !void {
     }.render);
     try run_transition(ncs, 1.0E9, {}, struct {
         fn render(ctx: void, diff: u64, duration: u64) nc.Error!void {
-            var i: usize = 0;
-            while (i < box_planes.len) : (i += 1) {
-                try reposition_plane(box_planes[i], transition_box(boxes_grid[i], boxes_arranged[i], duration, diff));
+            {
+                var i: usize = 0;
+                while (i < box_planes.len) : (i += 1) {
+                    try reposition_plane(box_planes[i], transition_box(boxes_grid[i], boxes_arranged[i], duration, diff));
+                }
             }
             try draw_boxes_bordered(box_planes);
         }
@@ -292,17 +314,21 @@ pub fn main() !void {
             var time_start: u64 = time.get_time_ns();
             var t: u64 = time_start;
             while (t < (time_start + duration)) : (t = time.get_time_ns()) {
-                var i: usize = 0;
-                while (i < box_planes.len) : (i += 1) {
-                    var plane = box_planes[i];
-                    var i_next = ((i + 1) % BOX_NUM);
-                    const colors = [4]u32{ box_colors[i], 16777215, box_colors[i], 0 };
-                    var corners: [4]u32 = undefined;
-                    var j: usize = 0;
-                    while (j < 4) : (j += 1) {
-                        corners[j] = @intCast(u32, nc.CELL_BGDEFAULT_MASK) | transition_rgb(colors[((loop + j) % 4)], colors[((j + loop + 1) % 4)], duration, t - time_start);
+                {
+                    var i: usize = 0;
+                    while (i < box_planes.len) : (i += 1) {
+                        var plane = box_planes[i];
+                        var i_next = ((i + 1) % BOX_NUM);
+                        const colors = [4]u32{ box_colors[i], 16777215, box_colors[i], 0 };
+                        var corners: [4]u32 = undefined;
+                        {
+                            var j: usize = 0;
+                            while (j < 4) : (j += 1) {
+                                corners[j] = @intCast(u32, nc.CELL_BGDEFAULT_MASK) | transition_rgb(colors[((loop + j) % 4)], colors[((j + loop + 1) % 4)], duration, t - time_start);
+                            }
+                        }
+                        try nc.err(nc.ncplane_highgradient(plane, corners[0], corners[1], corners[3], corners[2], nc.ncplane_dim_y(plane) - 1, nc.ncplane_dim_x(plane) - 1));
                     }
-                    try nc.err(nc.ncplane_highgradient(plane, corners[0], corners[1], corners[3], corners[2], nc.ncplane_dim_y(plane) - 1, nc.ncplane_dim_x(plane) - 1));
                 }
                 try nc.err(nc.notcurses_render(ncs));
                 time.sleep_until_ns(t + step_ns);

@@ -40,15 +40,13 @@
 
 (defn- ^"[4]c_int" transition_box [^"[4]c_int" start ^"[4]c_int" end ^u64 duration ^u64 diff]
   (var ^"[4]c_int" coords undefined)
-  (var ^usize i 0)
-  (while-step (< i coords.len) (inc! i)
+  (dotimes [i coords.len]
     (aset coords i (linear_transition (aget start i) (aget end i) duration diff)))
   (return coords))
 
 (defn- ^"[BOX_NUM][4]c_int" make_boxes_start [^anytype dimy ^anytype dimx]
   (var ^"[BOX_NUM][4]c_int" bs undefined)
-  (var ^usize i 0)
-  (while-step (< i bs.len) (inc! i)
+  (dotimes [i bs.len]
     (var ^c_int y -1)
     (var ^c_int x (@divTrunc dimx 2))
     (aset bs i 0 y)
@@ -59,8 +57,7 @@
 
 (defn- ^"[BOX_NUM][4]c_int" make_boxes_bottom_out [^anytype dimy ^anytype dimx]
   (var ^"[BOX_NUM][4]c_int" bs undefined)
-  (var ^usize i 0)
-  (while-step (< i bs.len) (inc! i)
+  (dotimes [i bs.len]
     (var ^c_int y (+ dimy 4))
     (var ^c_int x (@divTrunc dimx 2))
     (aset bs i 0 y)
@@ -106,8 +103,7 @@
   (var y0 (-> dimy (* 20) (@divFloor 100)))
   (var x0 (-> dimx (* 20) (@divFloor 100)))
   (var ^"[BOX_NUM][4]c_int" bs undefined)
-  (var ^usize i 0)
-  (while-step (< i bs.len) (inc! i)
+  (dotimes [i bs.len]
     (const ^c_int row (@divFloor (@intCast c_int i) 5))
     ;; FIXME Liz bug with @mod
     (const ^c_int col (zig* "@mod(@intCast(c_int, i), 5)"))
@@ -130,8 +126,7 @@
   (return (- (aget box 3) (aget box 1) 2)))
 
 (defn- ^void make_box_planes [^*nc.ncplane n ^"[] *nc.ncplane" planes]
-  (var ^usize i 0)
-  (while-step (< i planes.len) (inc! i)
+  (dotimes [i planes.len]
     (var opts nc.default_ncplane_options)
     (set! (.-rows opts) 1)
     (set! (.-cols opts) 1)
@@ -139,8 +134,7 @@
     (aset planes i plane.?)))
 
 (defn- ^!void draw_boxes_colored [^"[BOX_NUM] *nc.ncplane" planes]
-  (var ^usize i 0)
-  (while-step (< i planes.len) (inc! i)
+  (dotimes [i planes.len]
     (var ^u64 chans 0)
     (try (nc.err (nc.channels_set_bg_rgb &chans (aget box_colors i))))
     (const plane (aget planes i))
@@ -148,8 +142,7 @@
     (nc.ncplane_erase plane)))
 
 (defn- ^!void draw_boxes_gradients [^"[BOX_NUM] *nc.ncplane" planes]
-  (var ^usize i 0)
-  (while-step (< i planes.len) (inc! i)
+  (dotimes [i planes.len]
     (const plane (aget planes i))
     (const ^u32 ur (bit-or 0xffffff nc.CELL_BGDEFAULT_MASK))
     (const ^u32 ul (bit-or (aget box_colors i) (@intCast u32 nc.CELL_BGDEFAULT_MASK)))
@@ -158,8 +151,7 @@
     (try (nc.err (nc.ncplane_highgradient plane ul ur ll lr (dec (nc.ncplane_dim_y plane)) (dec (nc.ncplane_dim_x plane)))))))
 
 (defn- ^!void draw_boxes_bordered [^"[BOX_NUM] *nc.ncplane" planes]
-  (var ^usize i 0)
-  (while-step (< i planes.len) (inc! i)
+  (dotimes [i planes.len]
     (var plane (aget planes i))
     (nc.ncplane_erase plane)
     (try (nc.err (nc.ncplane_cursor_move_yx plane 0 0)))
@@ -171,8 +163,7 @@
   (try (nc.err (nc.ncplane_resize_simple plane (box_ylen box) (box_xlen box)))))
 
 (defn- ^!void reposition_planes [^"[BOX_NUM] *nc.ncplane" planes ^"[BOX_NUM][4]c_int" boxes]
-  (var ^usize i 0)
-  (while-step (< i planes.len) (inc! i)
+  (dotimes [i planes.len]
     (try (reposition_plane (aget planes i) (aget boxes i)))))
 
 (defn- ^!*nc.ncplane make_message_box [^*nc.ncplane parent ^c_int windowy ^c_int windowx]
@@ -228,8 +219,7 @@
   (try (nc.err (nc.notcurses_render ncs))))
 
 (defn- ^!void run_serial_transition [^*nc.notcurses ncs ^u64 duration ^"fn(usize, u64, u64) nc.Error!void" render]
-  (var ^usize i 0)
-  (while-step (< i BOX_NUM) (inc! i)
+  (dotimes [i BOX_NUM]
     (try (run_transition ncs duration i render))))
 
 (defn ^!void main []
@@ -266,8 +256,7 @@
 
   (try (run_transition ncs 1000e6 {}
          (-> (fn ^nc.Error!void render [^void ctx ^u64 diff ^u64 duration]
-              (var ^usize i 0)
-              (while-step (< i box_planes.len) (inc! i)
+              (dotimes [i box_planes.len]
                 (try (reposition_plane (aget box_planes i) (transition_box (aget boxes_grid i) (aget boxes_arranged i) duration diff))))
               (try (draw_boxes_bordered box_planes)))
              struct .-render)))
@@ -323,8 +312,7 @@
       (var ^u64 time_start (time.get_time_ns))
       (var ^u64 t time_start)
       (while-step (< t (+ time_start duration)) (set! t (time.get_time_ns))
-        (var ^usize i 0)
-        (while-step (< i box_planes.len) (inc! i)
+        (dotimes [i box_planes.len]
           (var plane (aget box_planes i))
           (var i_next (mod (inc i) BOX_NUM))
           (const colors ^"[4]u32"
@@ -333,8 +321,7 @@
                   (aget box_colors i)
                   0x000000])
           (var ^"[4]u32" corners undefined)
-          (var ^usize j 0)
-          (while-step (< j 4) (inc! j)
+          (dotimes [j 4]
             (aset corners j (bit-or (@intCast u32 nc.CELL_BGDEFAULT_MASK)
                                     (transition_rgb (aget colors (mod (+ loop j) 4))
                                                     (aget colors (mod (+ j loop 1) 4))
