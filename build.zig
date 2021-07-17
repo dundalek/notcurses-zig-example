@@ -21,6 +21,7 @@ pub fn build(b: *Builder) void {
     notcurses.linkSystemLibrary("ncurses");
     notcurses.linkSystemLibrary("readline");
     notcurses.linkSystemLibrary("unistring");
+    notcurses.linkSystemLibrary("z");
 
     notcurses.addIncludeDir(notcurses_source_path ++ "/include");
     notcurses.addIncludeDir(notcurses_source_path ++ "/build/include");
@@ -39,6 +40,8 @@ pub fn build(b: *Builder) void {
         notcurses_source_path ++ "/src/lib/menu.c",
         notcurses_source_path ++ "/src/lib/metric.c",
         notcurses_source_path ++ "/src/lib/notcurses.c",
+        notcurses_source_path ++ "/src/lib/plot.c",
+        // notcurses_source_path ++ "/src/lib/png.c",
         notcurses_source_path ++ "/src/lib/progbar.c",
         notcurses_source_path ++ "/src/lib/reader.c",
         notcurses_source_path ++ "/src/lib/reel.c",
@@ -49,7 +52,7 @@ pub fn build(b: *Builder) void {
         notcurses_source_path ++ "/src/lib/sprite.c",
         notcurses_source_path ++ "/src/lib/stats.c",
         notcurses_source_path ++ "/src/lib/tabbed.c",
-        notcurses_source_path ++ "/src/lib/terminfo.c",
+        notcurses_source_path ++ "/src/lib/termdesc.c",
         notcurses_source_path ++ "/src/lib/tree.c",
         notcurses_source_path ++ "/src/lib/visual.c",
         notcurses_source_path ++ "/src/compat/compat.c",
@@ -71,9 +74,6 @@ pub fn build(b: *Builder) void {
     exe.addIncludeDir(notcurses_source_path ++ "/include");
     exe.linkLibrary(notcurses);
 
-    exe.linkSystemLibrary("ncurses");
-    exe.linkSystemLibrary("readline");
-    exe.linkSystemLibrary("unistring");
     exe.linkSystemLibrary("qrcodegen");
 
     const run_cmd = exe.run();

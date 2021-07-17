@@ -1,7 +1,6 @@
 ;; -*- clojure -*-
-;; FIXME Liz add pub flag for namespace
-(zig* "pub ") (usingnamespace
-                (@cImport (do (@cInclude "notcurses/notcurses.h"))))
+(^:pub usingnamespace
+  (@cImport (do (@cInclude "notcurses/notcurses.h"))))
 
 (const ^:pub default_notcurses_options
   ^notcurses_options

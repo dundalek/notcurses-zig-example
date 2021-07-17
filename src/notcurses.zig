@@ -2,14 +2,14 @@ pub usingnamespace @cImport({
     @cInclude("notcurses/notcurses.h");
 });
 pub const default_notcurses_options = notcurses_options{
-    .loglevel = ncloglevel_e.NCLOGLEVEL_SILENT,
     .termtype = null,
+    .renderfp = null,
+    .loglevel = ncloglevel_e.NCLOGLEVEL_SILENT,
+    .margin_t = 0,
     .margin_r = 0,
     .margin_b = 0,
-    .flags = 0,
-    .renderfp = null,
-    .margin_t = 0,
     .margin_l = 0,
+    .flags = 0,
 };
 pub const default_ncplane_options = ncplane_options{
     .y = 0,
@@ -38,7 +38,9 @@ const default_ncselector_options = ncselector_options{
     .descchannels = 0,
 };
 var cnt: u64 = 0;
-pub const Error = error{NotcursesError};
+pub const Error = error{
+    NotcursesError,
+};
 pub fn err(code: c_int) !void {
     if (code < 0) return Error.NotcursesError;
 }

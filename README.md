@@ -9,9 +9,12 @@ Thanks to Zig's seamless C interop the library can be used directly without wrap
 ![Notcurses Zig demo](https://user-images.githubusercontent.com/755611/114319180-d83ac400-9aff-11eb-8b50-3e9a388b91c7.png)
 
 ### Dependencies
-- Install [Notcurses dependencies](https://github.com/dankamongmen/notcurses/blob/master/INSTALL.md), for Debian/Ubuntu:  
-  `sudo apt-get install build-essential cmake libncurses-dev libreadline-dev libunistring-dev libqrcodegen-dev pandoc pkg-config`
-- [Install Zig](https://ziglang.org/download/), requires zig-0.8.0-dev from master builds (latest stable v0.7.1 has some issues with translate-c) 
+- Install [Notcurses dependencies](https://github.com/dankamongmen/notcurses/blob/master/INSTALL.md)
+  - using [Nix](https://nixos.org/):  
+  `nix-shell`
+  - for Debian/Ubuntu:  
+  `sudo apt-get install build-essential cmake libncurses-dev libreadline-dev libunistring-dev libqrcodegen-dev zlib1g-dev`
+- [Install Zig](https://ziglang.org/download/) (version 0.8.0+)
 - Get Notcurses to compile from sources (since distributions don't often package latest versions):
 ```sh
 git clone https://github.com/dankamongmen/notcurses.git deps/notcurses
@@ -19,7 +22,7 @@ cd deps/notcurses
 mkdir build && cd build
 cmake -DUSE_MULTIMEDIA=none .. 
 # We just need `cmake` to generate some headers, no need to actually `make` since rest will be handled by Zig
-# In case of errors, try `git checkout v2.2.5` and re-run cmake as I tested it with this version.
+# In case of errors, try `git checkout v2.3.10` and re-run cmake as I tested it with this version.
 ```
 
 ### Build and run

@@ -105,9 +105,8 @@
   (var ^"[BOX_NUM][4]c_int" bs undefined)
   (dotimes [i bs.len]
     (const ^c_int row (@divFloor (@intCast c_int i) 5))
-    ;; FIXME Liz bug with @mod
-    (const ^c_int col (zig* "@mod(@intCast(c_int, i), 5)"))
-    (const shifted (zero? (zig* "@mod(col, 2)")))
+    (const ^c_int col (@mod (@intCast c_int i) 5))
+    (const shifted (zero? (@mod col 2)))
     (const y (+ y0
                 (* row (+ boxh (@divTrunc boxh 2)))
                 (if shifted (+ (@divTrunc boxh 2) 1) 0)))
@@ -144,10 +143,10 @@
 (defn- ^!void draw_boxes_gradients [^"[BOX_NUM] *nc.ncplane" planes]
   (dotimes [i planes.len]
     (const plane (aget planes i))
-    (const ^u32 ur (bit-or 0xffffff nc.CELL_BGDEFAULT_MASK))
-    (const ^u32 ul (bit-or (aget box_colors i) (@intCast u32 nc.CELL_BGDEFAULT_MASK)))
-    (const ^u32 lr (bit-or (aget box_colors i) (@intCast u32 nc.CELL_BGDEFAULT_MASK)))
-    (const ^u32 ll (bit-or 0x000000 nc.CELL_BGDEFAULT_MASK))
+    (const ^u32 ur (bit-or 0xffffff nc.NC_BGDEFAULT_MASK))
+    (const ^u32 ul (bit-or (aget box_colors i) (@intCast u32 nc.NC_BGDEFAULT_MASK)))
+    (const ^u32 lr (bit-or (aget box_colors i) (@intCast u32 nc.NC_BGDEFAULT_MASK)))
+    (const ^u32 ll (bit-or 0x000000 nc.NC_BGDEFAULT_MASK))
     (try (nc.err (nc.ncplane_highgradient plane ul ur ll lr (dec (nc.ncplane_dim_y plane)) (dec (nc.ncplane_dim_x plane)))))))
 
 (defn- ^!void draw_boxes_bordered [^"[BOX_NUM] *nc.ncplane" planes]
@@ -181,7 +180,7 @@
 
   (var ^u64 chans 0)
   (try (nc.err (nc.channels_set_bg_rgb &chans 0x000000)))
-  (try (nc.err (nc.channels_set_bg_alpha &chans nc.CELL_ALPHA_BLEND)))
+  (try (nc.err (nc.channels_set_bg_alpha &chans nc.NCALPHA_BLEND)))
   (try (nc.err (nc.ncplane_set_base plane " " 0 chans)))
 
   (var ^u64 border_chans 0)
@@ -283,10 +282,10 @@
   (try (run_serial_transition ncs 150e6
          (-> (fn ^nc.Error!void render [^usize i ^u64 diff ^u64 duration]
               (const plane (aget box_planes i))
-              (const ^u32 ur (bit-or (transition_rgb (aget box_colors i) 0xffffff duration diff) (@intCast u32 nc.CELL_BGDEFAULT_MASK)))
-              (const ^u32 ul (bit-or (aget box_colors i) (@intCast u32 nc.CELL_BGDEFAULT_MASK)))
-              (const ^u32 lr (bit-or (aget box_colors i) (@intCast u32 nc.CELL_BGDEFAULT_MASK)))
-              (const ^u32 ll (bit-or (transition_rgb (aget box_colors i) 0x000000 duration diff) (@intCast u32 nc.CELL_BGDEFAULT_MASK)))
+              (const ^u32 ur (bit-or (transition_rgb (aget box_colors i) 0xffffff duration diff) (@intCast u32 nc.NC_BGDEFAULT_MASK)))
+              (const ^u32 ul (bit-or (aget box_colors i) (@intCast u32 nc.NC_BGDEFAULT_MASK)))
+              (const ^u32 lr (bit-or (aget box_colors i) (@intCast u32 nc.NC_BGDEFAULT_MASK)))
+              (const ^u32 ll (bit-or (transition_rgb (aget box_colors i) 0x000000 duration diff) (@intCast u32 nc.NC_BGDEFAULT_MASK)))
               (try (nc.err (nc.ncplane_highgradient plane ul ur ll lr (dec (nc.ncplane_dim_y plane)) (dec (nc.ncplane_dim_x plane))))))
             struct .-render)))
 
@@ -322,7 +321,7 @@
                   0x000000])
           (var ^"[4]u32" corners undefined)
           (dotimes [j 4]
-            (aset corners j (bit-or (@intCast u32 nc.CELL_BGDEFAULT_MASK)
+            (aset corners j (bit-or (@intCast u32 nc.NC_BGDEFAULT_MASK)
                                     (transition_rgb (aget colors (mod (+ loop j) 4))
                                                     (aget colors (mod (+ j loop 1) 4))
                                                     duration
