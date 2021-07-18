@@ -45,3 +45,7 @@ The source of this demo is actually written in [Liz](https://github.com/dundalek
 ```sh
 liz src/*.liz && zig build
 ```
+
+### Related
+
+See also the demo implemented in [Clojure](https://github.com/dundalek/notcurses-clojure-example).
