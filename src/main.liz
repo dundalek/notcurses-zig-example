@@ -32,10 +32,10 @@
 
 (defn- ^u32 transition_rgb [^u32 start ^u32 end ^u64 duration ^u64 diff]
   (var ^u32 rgb 0)
-  (var r (linear_transition (@intCast c_int (nc.channel_r start)) (@intCast c_int (nc.channel_r end)) duration diff))
-  (var g (linear_transition (@intCast c_int (nc.channel_g start)) (@intCast c_int (nc.channel_g end)) duration diff))
-  (var b (linear_transition (@intCast c_int (nc.channel_b start)) (@intCast c_int (nc.channel_b end)) duration diff))
-  (nc.channel_set_rgb8_clipped &rgb r g b)
+  (var r (linear_transition (@intCast c_int (nc.ncchannel_r start)) (@intCast c_int (nc.ncchannel_r end)) duration diff))
+  (var g (linear_transition (@intCast c_int (nc.ncchannel_g start)) (@intCast c_int (nc.ncchannel_g end)) duration diff))
+  (var b (linear_transition (@intCast c_int (nc.ncchannel_b start)) (@intCast c_int (nc.ncchannel_b end)) duration diff))
+  (nc.ncchannel_set_rgb8_clipped &rgb r g b)
   (return rgb))
 
 (defn- ^"[4]c_int" transition_box [^"[4]c_int" start ^"[4]c_int" end ^u64 duration ^u64 diff]
@@ -135,7 +135,7 @@
 (defn- ^!void draw_boxes_colored [^"[BOX_NUM] *nc.ncplane" planes]
   (dotimes [i planes.len]
     (var ^u64 chans 0)
-    (try (nc.err (nc.channels_set_bg_rgb &chans (aget box_colors i))))
+    (try (nc.err (nc.ncchannels_set_bg_rgb &chans (aget box_colors i))))
     (const plane (aget planes i))
     (try (nc.err (nc.ncplane_set_base plane " " 0 chans)))
     (nc.ncplane_erase plane)))
@@ -179,12 +179,12 @@
   (const plane (.-? (nc.ncplane_create parent &opts)))
 
   (var ^u64 chans 0)
-  (try (nc.err (nc.channels_set_bg_rgb &chans 0x000000)))
-  (try (nc.err (nc.channels_set_bg_alpha &chans nc.NCALPHA_BLEND)))
+  (try (nc.err (nc.ncchannels_set_bg_rgb &chans 0x000000)))
+  (try (nc.err (nc.ncchannels_set_bg_alpha &chans nc.NCALPHA_BLEND)))
   (try (nc.err (nc.ncplane_set_base plane " " 0 chans)))
 
   (var ^u64 border_chans 0)
-  (try (nc.err (nc.channels_set_fg_rgb &border_chans c_red)))
+  (try (nc.err (nc.ncchannels_set_fg_rgb &border_chans c_red)))
   (set! _ (nc.ncplane_rounded_box plane 0 border_chans (dec (nc.ncplane_dim_y plane)) (dec (nc.ncplane_dim_x plane)) 0))
 
   (try (nc.err (nc.ncplane_putstr_yx plane 1 2 l1)))
@@ -236,7 +236,7 @@
   (set! dimx (std.math.max dimx 80))
   (set! dimy (std.math.max dimy 25))
   (var ^u64 std_chan 0)
-  (try (nc.err (nc.channels_set_bg_rgb &std_chan 0x000000)))
+  (try (nc.err (nc.ncchannels_set_bg_rgb &std_chan 0x000000)))
   (try (nc.err (nc.ncplane_set_base n " " 0 std_chan)))
 
   (make_box_planes n &box_planes)
@@ -264,8 +264,8 @@
          (-> (fn ^nc.Error!void render [^usize i ^u64 diff ^u64 duration]
               (const plane (aget box_planes i))
               (var ^u64 chans 0)
-              (set! _ (nc.channels_set_bchannel &chans (transition_rgb 0x333333 0x000000 duration diff)))
-              (set! _ (nc.channels_set_fchannel &chans (transition_rgb 0xF2F2F2 0x000000 duration diff)))
+              (set! _ (nc.ncchannels_set_bchannel &chans (transition_rgb 0x333333 0x000000 duration diff)))
+              (set! _ (nc.ncchannels_set_fchannel &chans (transition_rgb 0xF2F2F2 0x000000 duration diff)))
               (try (nc.err (nc.ncplane_set_base plane " " 0 chans)))
               (try (draw_boxes_bordered box_planes)))
              struct .-render)))
@@ -274,7 +274,7 @@
          (-> (fn ^nc.Error!void render [^usize i ^u64 diff ^u64 duration]
               (const plane (aget box_planes i))
               (var ^u64 chans 0)
-              (set! _ (nc.channels_set_bchannel &chans (transition_rgb 0x000000 (aget box_colors i) duration diff)))
+              (set! _ (nc.ncchannels_set_bchannel &chans (transition_rgb 0x000000 (aget box_colors i) duration diff)))
               (try (nc.err (nc.ncplane_set_base plane " " 0 chans)))
               (nc.ncplane_erase plane))
              struct .-render)))

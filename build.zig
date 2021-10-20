@@ -14,6 +14,9 @@ pub fn build(b: *Builder) void {
     const notcurses_source_path = "deps/notcurses";
 
     const notcurses = b.addStaticLibrary("notcurses", null);
+    // notcurses has saome undefined benavior which makes the demo crash with
+    // illegal instruction, disabling UBSAN to make it work (-fno-sanitize-c)
+    notcurses.disable_sanitize_c = true;
     notcurses.setTarget(target);
     notcurses.setBuildMode(mode);
     notcurses.linkLibC();
@@ -27,13 +30,17 @@ pub fn build(b: *Builder) void {
     notcurses.addIncludeDir(notcurses_source_path ++ "/build/include");
     notcurses.addIncludeDir(notcurses_source_path ++ "/src");
     notcurses.addCSourceFiles(&[_][]const u8{
+        notcurses_source_path ++ "/src/compat/compat.c",
+        notcurses_source_path ++ "/src/lib/automaton.c",
+        notcurses_source_path ++ "/src/lib/banner.c",
         notcurses_source_path ++ "/src/lib/blit.c",
         notcurses_source_path ++ "/src/lib/debug.c",
         notcurses_source_path ++ "/src/lib/direct.c",
         notcurses_source_path ++ "/src/lib/fade.c",
         notcurses_source_path ++ "/src/lib/fd.c",
         notcurses_source_path ++ "/src/lib/fill.c",
-        notcurses_source_path ++ "/src/lib/input.c",
+        notcurses_source_path ++ "/src/lib/gpm.c",
+        notcurses_source_path ++ "/src/lib/in.c",
         notcurses_source_path ++ "/src/lib/kitty.c",
         notcurses_source_path ++ "/src/lib/layout.c",
         notcurses_source_path ++ "/src/lib/linux.c",
@@ -41,7 +48,6 @@ pub fn build(b: *Builder) void {
         notcurses_source_path ++ "/src/lib/metric.c",
         notcurses_source_path ++ "/src/lib/notcurses.c",
         notcurses_source_path ++ "/src/lib/plot.c",
-        // notcurses_source_path ++ "/src/lib/png.c",
         notcurses_source_path ++ "/src/lib/progbar.c",
         notcurses_source_path ++ "/src/lib/reader.c",
         notcurses_source_path ++ "/src/lib/reel.c",
@@ -54,9 +60,12 @@ pub fn build(b: *Builder) void {
         notcurses_source_path ++ "/src/lib/tabbed.c",
         notcurses_source_path ++ "/src/lib/termdesc.c",
         notcurses_source_path ++ "/src/lib/tree.c",
+        notcurses_source_path ++ "/src/lib/util.c",
         notcurses_source_path ++ "/src/lib/visual.c",
-        notcurses_source_path ++ "/src/compat/compat.c",
+        notcurses_source_path ++ "/src/lib/windows.c",
     }, &[_][]const u8{
+        "-std=gnu11",
+        "-D_GNU_SOURCE", // to make memory management work, see sys/mman.h
         "-DUSE_MULTIMEDIA=none",
         "-DUSE_QRCODEGEN=OFF",
         "-DPOLLRDHUP=0x2000",

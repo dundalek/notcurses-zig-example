@@ -13,10 +13,10 @@ fn linear_transition(start: anytype, end: anytype, duration: u64, diff: u64) @Ty
 
 fn transition_rgb(start: u32, end: u32, duration: u64, diff: u64) u32 {
     var rgb: u32 = 0;
-    var r = linear_transition(@intCast(c_int, nc.channel_r(start)), @intCast(c_int, nc.channel_r(end)), duration, diff);
-    var g = linear_transition(@intCast(c_int, nc.channel_g(start)), @intCast(c_int, nc.channel_g(end)), duration, diff);
-    var b = linear_transition(@intCast(c_int, nc.channel_b(start)), @intCast(c_int, nc.channel_b(end)), duration, diff);
-    nc.channel_set_rgb8_clipped(&rgb, r, g, b);
+    var r = linear_transition(@intCast(c_int, nc.ncchannel_r(start)), @intCast(c_int, nc.ncchannel_r(end)), duration, diff);
+    var g = linear_transition(@intCast(c_int, nc.ncchannel_g(start)), @intCast(c_int, nc.ncchannel_g(end)), duration, diff);
+    var b = linear_transition(@intCast(c_int, nc.ncchannel_b(start)), @intCast(c_int, nc.ncchannel_b(end)), duration, diff);
+    nc.ncchannel_set_rgb8_clipped(&rgb, r, g, b);
     return rgb;
 }
 
@@ -129,7 +129,7 @@ fn draw_boxes_colored(planes: [BOX_NUM]*nc.ncplane) !void {
         var i: usize = 0;
         while (i < planes.len) : (i += 1) {
             var chans: u64 = 0;
-            try nc.err(nc.channels_set_bg_rgb(&chans, box_colors[i]));
+            try nc.err(nc.ncchannels_set_bg_rgb(&chans, box_colors[i]));
             const plane = planes[i];
             try nc.err(nc.ncplane_set_base(plane, " ", 0, chans));
             nc.ncplane_erase(plane);
@@ -189,11 +189,11 @@ fn make_message_box(parent: *nc.ncplane, windowy: c_int, windowx: c_int) !*nc.nc
     opts.y = windowy - opts.rows - 2;
     const plane = nc.ncplane_create(parent, &opts).?;
     var chans: u64 = 0;
-    try nc.err(nc.channels_set_bg_rgb(&chans, 0));
-    try nc.err(nc.channels_set_bg_alpha(&chans, nc.NCALPHA_BLEND));
+    try nc.err(nc.ncchannels_set_bg_rgb(&chans, 0));
+    try nc.err(nc.ncchannels_set_bg_alpha(&chans, nc.NCALPHA_BLEND));
     try nc.err(nc.ncplane_set_base(plane, " ", 0, chans));
     var border_chans: u64 = 0;
-    try nc.err(nc.channels_set_fg_rgb(&border_chans, c_red));
+    try nc.err(nc.ncchannels_set_fg_rgb(&border_chans, c_red));
     _ = nc.ncplane_rounded_box(plane, 0, border_chans, nc.ncplane_dim_y(plane) - 1, nc.ncplane_dim_x(plane) - 1, 0);
     try nc.err(nc.ncplane_putstr_yx(plane, 1, 2, l1));
     try nc.err(nc.ncplane_putstr_yx(plane, 2, 2, l2));
@@ -244,7 +244,7 @@ pub fn main() !void {
     dimx = std.math.max(dimx, 80);
     dimy = std.math.max(dimy, 25);
     var std_chan: u64 = 0;
-    try nc.err(nc.channels_set_bg_rgb(&std_chan, 0));
+    try nc.err(nc.ncchannels_set_bg_rgb(&std_chan, 0));
     try nc.err(nc.ncplane_set_base(n, " ", 0, std_chan));
     make_box_planes(n, &box_planes);
     boxes_start = make_boxes_start(dimy, dimx);
@@ -272,8 +272,8 @@ pub fn main() !void {
         fn render(i: usize, diff: u64, duration: u64) nc.Error!void {
             const plane = box_planes[i];
             var chans: u64 = 0;
-            _ = nc.channels_set_bchannel(&chans, transition_rgb(3355443, 0, duration, diff));
-            _ = nc.channels_set_fchannel(&chans, transition_rgb(15921906, 0, duration, diff));
+            _ = nc.ncchannels_set_bchannel(&chans, transition_rgb(3355443, 0, duration, diff));
+            _ = nc.ncchannels_set_fchannel(&chans, transition_rgb(15921906, 0, duration, diff));
             try nc.err(nc.ncplane_set_base(plane, " ", 0, chans));
             try draw_boxes_bordered(box_planes);
         }
@@ -282,7 +282,7 @@ pub fn main() !void {
         fn render(i: usize, diff: u64, duration: u64) nc.Error!void {
             const plane = box_planes[i];
             var chans: u64 = 0;
-            _ = nc.channels_set_bchannel(&chans, transition_rgb(0, box_colors[i], duration, diff));
+            _ = nc.ncchannels_set_bchannel(&chans, transition_rgb(0, box_colors[i], duration, diff));
             try nc.err(nc.ncplane_set_base(plane, " ", 0, chans));
             nc.ncplane_erase(plane);
         }
