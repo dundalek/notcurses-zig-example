@@ -1,17 +1,18 @@
-pub usingnamespace @cImport({
+const c = @cImport({
     @cInclude("notcurses/notcurses.h");
 });
-pub const default_notcurses_options = notcurses_options{
+pub usingnamespace c;
+pub const default_notcurses_options = c.notcurses_options{
     .termtype = null,
     .renderfp = null,
-    .loglevel = ncloglevel_e.NCLOGLEVEL_SILENT,
+    .loglevel = c.NCLOGLEVEL_SILENT,
     .margin_t = 0,
     .margin_r = 0,
     .margin_b = 0,
     .margin_l = 0,
     .flags = 0,
 };
-pub const default_ncplane_options = ncplane_options{
+pub const default_ncplane_options = c.ncplane_options{
     .y = 0,
     .userptr = null,
     .name = null,
@@ -23,7 +24,7 @@ pub const default_ncplane_options = ncplane_options{
     .flags = 0,
     .resizecb = null,
 };
-const default_ncselector_options = ncselector_options{
+const default_ncselector_options = c.ncselector_options{
     .footchannels = 0,
     .boxchannels = 0,
     .defidx = 0,
@@ -37,7 +38,6 @@ const default_ncselector_options = ncselector_options{
     .maxdisplay = 0,
     .descchannels = 0,
 };
-var cnt: u64 = 0;
 pub const Error = error{
     NotcursesError,
 };

@@ -45,6 +45,7 @@
   (return coords))
 
 (defn- ^"[BOX_NUM][4]c_int" make_boxes_start [^anytype dimy ^anytype dimx]
+  (set! _ dimy)
   (var ^"[BOX_NUM][4]c_int" bs undefined)
   (dotimes [i bs.len]
     (var ^c_int y -1)
@@ -166,6 +167,7 @@
     (try (reposition_plane (aget planes i) (aget boxes i)))))
 
 (defn- ^!*nc.ncplane make_message_box [^*nc.ncplane parent ^c_int windowy ^c_int windowx]
+  (set! _ windowx)
   (const l1 "Notcurses by Nick Black et al")
   (const l2 "Zig lang by Andrew Kelley & community")
   (const l3 "Liz lang & demo by Jakub Dundalek")
@@ -255,6 +257,7 @@
 
   (try (run_transition ncs 1000e6 {}
          (-> (fn ^nc.Error!void render [^void ctx ^u64 diff ^u64 duration]
+               (set! _ ctx)
               (dotimes [i box_planes.len]
                 (try (reposition_plane (aget box_planes i) (transition_box (aget boxes_grid i) (aget boxes_arranged i) duration diff))))
               (try (draw_boxes_bordered box_planes)))
@@ -313,7 +316,6 @@
       (while-step (< t (+ time_start duration)) (set! t (time.get_time_ns))
         (dotimes [i box_planes.len]
           (var plane (aget box_planes i))
-          (var i_next (mod (inc i) BOX_NUM))
           (const colors ^"[4]u32"
                  [(aget box_colors i)
                   0xffffff

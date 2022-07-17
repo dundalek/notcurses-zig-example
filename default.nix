@@ -1,4 +1,4 @@
-with import <nixpkgs> {};
+with import <nixpkgs> { };
 stdenv.mkDerivation {
   name = "notcurses-env";
   buildInputs = [
@@ -7,6 +7,7 @@ stdenv.mkDerivation {
     zig
 
     # notcurses dependencies
+    doctest
     libunistring
     ncurses
     qrcodegen

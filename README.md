@@ -14,13 +14,13 @@ Thanks to Zig's seamless C interop the library can be used directly without wrap
   `nix-shell`
   - for Debian/Ubuntu:  
   `sudo apt-get install build-essential cmake libncurses-dev libreadline-dev libunistring-dev libqrcodegen-dev zlib1g-dev`
-- [Install Zig](https://ziglang.org/download/) (version 0.8.0+)
+- [Install Zig](https://ziglang.org/download/) (version 0.9.1+)
 - Get Notcurses to compile from sources (since distributions don't often package latest versions):
 ```sh
 git clone https://github.com/dankamongmen/notcurses.git deps/notcurses
 cd deps/notcurses
 mkdir build && cd build
-cmake -DUSE_MULTIMEDIA=none .. 
+cmake -DUSE_MULTIMEDIA=none DUSE_PANDOC=OFF ..
 # We just need `cmake` to generate some headers, no need to actually `make` since rest will be handled by Zig
 # In case of errors, try `git checkout v2.4.7` and re-run cmake as I tested it with this version.
 ```

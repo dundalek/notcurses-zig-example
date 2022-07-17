@@ -32,6 +32,7 @@ fn transition_box(start: [4]c_int, end: [4]c_int, duration: u64, diff: u64) [4]c
 }
 
 fn make_boxes_start(dimy: anytype, dimx: anytype) [BOX_NUM][4]c_int {
+    _ = dimy;
     var bs: [BOX_NUM][4]c_int = undefined;
     {
         var i: usize = 0;
@@ -178,6 +179,7 @@ fn reposition_planes(planes: [BOX_NUM]*nc.ncplane, boxes: [BOX_NUM][4]c_int) !vo
 }
 
 fn make_message_box(parent: *nc.ncplane, windowy: c_int, windowx: c_int) !*nc.ncplane {
+    _ = windowx;
     const l1 = "Notcurses by Nick Black et al";
     const l2 = "Zig lang by Andrew Kelley & community";
     const l3 = "Liz lang & demo by Jakub Dundalek";
@@ -259,6 +261,7 @@ pub fn main() !void {
     }.render);
     try run_transition(ncs, 1.0E9, {}, struct {
         fn render(ctx: void, diff: u64, duration: u64) nc.Error!void {
+            _ = ctx;
             {
                 var i: usize = 0;
                 while (i < box_planes.len) : (i += 1) {
@@ -318,7 +321,6 @@ pub fn main() !void {
                     var i: usize = 0;
                     while (i < box_planes.len) : (i += 1) {
                         var plane = box_planes[i];
-                        var i_next = ((i + 1) % BOX_NUM);
                         const colors = [4]u32{ box_colors[i], 16777215, box_colors[i], 0 };
                         var corners: [4]u32 = undefined;
                         {

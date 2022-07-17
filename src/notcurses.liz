@@ -1,12 +1,12 @@
 ;; -*- clojure -*-
-(^:pub usingnamespace
-  (@cImport (do (@cInclude "notcurses/notcurses.h"))))
+(const c (@cImport (do (@cInclude "notcurses/notcurses.h"))))
+(^:pub usingnamespace c)
 
 (const ^:pub default_notcurses_options
-  ^notcurses_options
+  ^c.notcurses_options
   {:termtype nil
    :renderfp nil
-   :loglevel ncloglevel_e.NCLOGLEVEL_SILENT
+   :loglevel c.NCLOGLEVEL_SILENT
    :margin_t 0
    :margin_r 0
    :margin_b 0
@@ -14,7 +14,7 @@
    :flags 0})
 
 (const ^:pub default_ncplane_options
-  ^ncplane_options
+  ^c.ncplane_options
   {:y 0
    :x 0
    :rows 0
@@ -27,7 +27,7 @@
    :margin_r 0})
 
 (const default_ncselector_options
-  ^ncselector_options
+  ^c.ncselector_options
   {:title nil
    :secondary nil
    :footer nil
@@ -40,8 +40,6 @@
    :footchannels 0
    :boxchannels 0
    :flags 0})
-
-(var ^u64 cnt 0)
 
 (const ^:pub Error (error NotcursesError))
 
