@@ -21,6 +21,7 @@ pub fn build(b: *Builder) void {
     notcurses.setBuildMode(mode);
     notcurses.linkLibC();
 
+    notcurses.linkSystemLibrary("deflate");
     notcurses.linkSystemLibrary("ncurses");
     notcurses.linkSystemLibrary("readline");
     notcurses.linkSystemLibrary("unistring");
@@ -31,6 +32,7 @@ pub fn build(b: *Builder) void {
     notcurses.addIncludeDir(notcurses_source_path ++ "/src");
     notcurses.addCSourceFiles(&[_][]const u8{
         notcurses_source_path ++ "/src/compat/compat.c",
+
         notcurses_source_path ++ "/src/lib/automaton.c",
         notcurses_source_path ++ "/src/lib/banner.c",
         notcurses_source_path ++ "/src/lib/blit.c",
@@ -46,6 +48,7 @@ pub fn build(b: *Builder) void {
         notcurses_source_path ++ "/src/lib/linux.c",
         notcurses_source_path ++ "/src/lib/menu.c",
         notcurses_source_path ++ "/src/lib/metric.c",
+        notcurses_source_path ++ "/src/lib/mice.c",
         notcurses_source_path ++ "/src/lib/notcurses.c",
         notcurses_source_path ++ "/src/lib/plot.c",
         notcurses_source_path ++ "/src/lib/progbar.c",
@@ -53,13 +56,13 @@ pub fn build(b: *Builder) void {
         notcurses_source_path ++ "/src/lib/reel.c",
         notcurses_source_path ++ "/src/lib/render.c",
         notcurses_source_path ++ "/src/lib/selector.c",
-        notcurses_source_path ++ "/src/lib/signal.c",
         notcurses_source_path ++ "/src/lib/sixel.c",
         notcurses_source_path ++ "/src/lib/sprite.c",
         notcurses_source_path ++ "/src/lib/stats.c",
         notcurses_source_path ++ "/src/lib/tabbed.c",
         notcurses_source_path ++ "/src/lib/termdesc.c",
         notcurses_source_path ++ "/src/lib/tree.c",
+        notcurses_source_path ++ "/src/lib/unixsig.c",
         notcurses_source_path ++ "/src/lib/util.c",
         notcurses_source_path ++ "/src/lib/visual.c",
         notcurses_source_path ++ "/src/lib/windows.c",

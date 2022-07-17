@@ -49,7 +49,7 @@
   (var ^"[BOX_NUM][4]c_int" bs undefined)
   (dotimes [i bs.len]
     (var ^c_int y -1)
-    (var ^c_int x (@divTrunc dimx 2))
+    (var ^c_int x (@divTrunc (@intCast c_int dimx) 2))
     (aset bs i 0 y)
     (aset bs i 1 x)
     (aset bs i 2 (+ y 2))
@@ -59,15 +59,17 @@
 (defn- ^"[BOX_NUM][4]c_int" make_boxes_bottom_out [^anytype dimy ^anytype dimx]
   (var ^"[BOX_NUM][4]c_int" bs undefined)
   (dotimes [i bs.len]
-    (var ^c_int y (+ dimy 4))
-    (var ^c_int x (@divTrunc dimx 2))
+    (var ^c_int y (+ (@intCast c_int dimy) 4))
+    (var ^c_int x (@divTrunc (@intCast c_int dimx) 2))
     (aset bs i 0 y)
     (aset bs i 1 x)
     (aset bs i 2 (+ y 2))
     (aset bs i 3 (+ x 4)))
   (return bs))
 
-(defn- ^"[BOX_NUM][4]c_int" make_boxes_arranged [^anytype dimy ^anytype dimx]
+(defn- ^"[BOX_NUM][4]c_int" make_boxes_arranged [^anytype dim_y ^anytype dim_x]
+  (var dimx (@intCast c_int dim_x))
+  (var dimy (@intCast c_int dim_y))
   (var ^c_int x0 2)
   (var x1 (-> dimx (* 40) (@divFloor 100)))
   (var x2 (-> dimx (* 55) (@divFloor 100)))
@@ -99,10 +101,10 @@
   (return bs))
 
 (defn- ^"[BOX_NUM][4]c_int" make_boxes_grid [^anytype dimy ^anytype dimx]
-  (const ^c_int boxh (@divTrunc dimy 5))
+  (const ^c_int boxh (@divTrunc (@intCast c_int dimy) 5))
   (const ^c_int boxw (* boxh 2))
-  (var y0 (-> dimy (* 20) (@divFloor 100)))
-  (var x0 (-> dimx (* 20) (@divFloor 100)))
+  (var ^c_int y0 (-> (@intCast c_int dimy) (* 20) (@divFloor 100)))
+  (var ^c_int x0 (-> (@intCast c_int dimx) (* 20) (@divFloor 100)))
   (var ^"[BOX_NUM][4]c_int" bs undefined)
   (dotimes [i bs.len]
     (const ^c_int row (@divFloor (@intCast c_int i) 5))
@@ -119,11 +121,11 @@
     (aset bs i 3 (+ x boxw)))
   (return bs))
 
-(defn- ^c_int box_ylen [^"[4]c_int" box]
-  (return (- (aget box 2) (aget box 0) 1)))
+(defn- ^c_uint box_ylen [^"[4]c_int" box]
+  (return (@intCast c_uint (- (aget box 2) (aget box 0) 1))))
 
-(defn- ^c_int box_xlen [^"[4]c_int" box]
-  (return (- (aget box 3) (aget box 1) 2)))
+(defn- ^c_uint box_xlen [^"[4]c_int" box]
+  (return (@intCast c_uint (- (aget box 3) (aget box 1) 2))))
 
 (defn- ^void make_box_planes [^*nc.ncplane n ^"[] *nc.ncplane" planes]
   (dotimes [i planes.len]
@@ -148,7 +150,7 @@
     (const ^u32 ul (bit-or (aget box_colors i) (@intCast u32 nc.NC_BGDEFAULT_MASK)))
     (const ^u32 lr (bit-or (aget box_colors i) (@intCast u32 nc.NC_BGDEFAULT_MASK)))
     (const ^u32 ll (bit-or 0x000000 nc.NC_BGDEFAULT_MASK))
-    (try (nc.err (nc.ncplane_highgradient plane ul ur ll lr (dec (nc.ncplane_dim_y plane)) (dec (nc.ncplane_dim_x plane)))))))
+    (try (nc.err (nc.ncplane_gradient2x1 plane 0 0 (nc.ncplane_dim_y plane) (nc.ncplane_dim_x plane) ul ur ll lr)))))
 
 (defn- ^!void draw_boxes_bordered [^"[BOX_NUM] *nc.ncplane" planes]
   (dotimes [i planes.len]
@@ -177,7 +179,7 @@
   (set! (.-rows opts) (+ 5 2))
   (set! (.-cols opts) (-> l2 .-len (+ 4)))
   (set! (.-x opts) 4)
-  (set! (.-y opts) (- windowy (.-rows opts) 2))
+  (set! (.-y opts) (- windowy (@intCast c_int (.-rows opts)) 2))
   (const plane (.-? (nc.ncplane_create parent &opts)))
 
   (var ^u64 chans 0)
@@ -231,8 +233,8 @@
                               (orelse (@panic "notcurses_core_init() failed"))))
   (defer (set! _ (nc.notcurses_stop ncs)))
 
-  (var ^c_int dimy undefined)
-  (var ^c_int dimx undefined)
+  (var ^c_uint dimy undefined)
+  (var ^c_uint dimx undefined)
   (var ^*nc.ncplane n (-> (nc.notcurses_stddim_yx ncs &dimy &dimx)
                           (orelse (unreachable))))
   (set! dimx (std.math.max dimx 80))
@@ -289,23 +291,23 @@
               (const ^u32 ul (bit-or (aget box_colors i) (@intCast u32 nc.NC_BGDEFAULT_MASK)))
               (const ^u32 lr (bit-or (aget box_colors i) (@intCast u32 nc.NC_BGDEFAULT_MASK)))
               (const ^u32 ll (bit-or (transition_rgb (aget box_colors i) 0x000000 duration diff) (@intCast u32 nc.NC_BGDEFAULT_MASK)))
-              (try (nc.err (nc.ncplane_highgradient plane ul ur ll lr (dec (nc.ncplane_dim_y plane)) (dec (nc.ncplane_dim_x plane))))))
+              (try (nc.err (nc.ncplane_gradient2x1 plane 0 0 (nc.ncplane_dim_y plane) (nc.ncplane_dim_x plane) ul ur ll lr))))
             struct .-render)))
 
   ; (try (reposition_planes box_planes boxes_arranged))
   ; (try (draw_boxes_gradients box_planes))
   ; (try (nc.err (nc.notcurses_render ncs)))
 
-  (set! message_box (try (make_message_box n dimy dimx)))
+  (set! message_box (try (make_message_box n (@intCast c_int dimy) (@intCast c_int dimx))))
   (try (run_transition ncs 300e6
-                       ^PositionContext{:from (- (nc.ncplane_dim_x message_box))
+                       ^PositionContext{:from (- (@intCast c_int (nc.ncplane_dim_x message_box)))
                                         :to (nc.ncplane_x message_box)}
                        (-> (fn ^nc.Error!void render [^PositionContext ctx ^u64 diff ^u64 duration]
                             (const ^c_int x (linear_transition (.-from ctx) (.-to ctx) duration diff))
                             (try (nc.err (nc.ncplane_move_yx message_box (nc.ncplane_y message_box) x))))
                            struct .-render)))
 
-  ; (set! _ (nc.notcurses_getc_blocking ncs nil))
+  ; (set! _ (nc.notcurses_get_blocking ncs nil))
 
   (block :outer
     (var ^usize loop 0)
@@ -328,16 +330,18 @@
                                                     (aget colors (mod (+ j loop 1) 4))
                                                     duration
                                                     (- t time_start)))))
-          (try (nc.err (nc.ncplane_highgradient plane
+          (try (nc.err (nc.ncplane_gradient2x1 plane
+                                                0
+                                                0
+                                                (nc.ncplane_dim_y plane)
+                                                (nc.ncplane_dim_x plane)
                                                 (aget corners 0)
                                                 (aget corners 1)
                                                 (aget corners 3)
-                                                (aget corners 2)
-                                                (dec (nc.ncplane_dim_y plane))
-                                                (dec (nc.ncplane_dim_x plane))))))
+                                                (aget corners 2)))))
         (try (nc.err (nc.notcurses_render ncs)))
         (time.sleep_until_ns (+ t step_ns))
 
-        (var ^c_uint keypress (nc.notcurses_getc_nblock ncs nil))
+        (var ^c_uint keypress (nc.notcurses_get_nblock ncs nil))
         (when (= keypress \q)
           (break :outer))))))

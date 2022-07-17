@@ -22,7 +22,7 @@ cd deps/notcurses
 mkdir build && cd build
 cmake -DUSE_MULTIMEDIA=none DUSE_PANDOC=OFF ..
 # We just need `cmake` to generate some headers, no need to actually `make` since rest will be handled by Zig
-# In case of errors, try `git checkout v2.4.7` and re-run cmake as I tested it with this version.
+# In case of errors, try `git checkout v3.0.8` and re-run cmake as I tested it with this version.
 ```
 
 ### Build and run

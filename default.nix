@@ -8,6 +8,7 @@ stdenv.mkDerivation {
 
     # notcurses dependencies
     doctest
+    libdeflate
     libunistring
     ncurses
     qrcodegen

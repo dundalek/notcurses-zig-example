@@ -4,7 +4,6 @@ const c = @cImport({
 pub usingnamespace c;
 pub const default_notcurses_options = c.notcurses_options{
     .termtype = null,
-    .renderfp = null,
     .loglevel = c.NCLOGLEVEL_SILENT,
     .margin_t = 0,
     .margin_r = 0,

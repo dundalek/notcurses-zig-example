@@ -5,7 +5,6 @@
 (const ^:pub default_notcurses_options
   ^c.notcurses_options
   {:termtype nil
-   :renderfp nil
    :loglevel c.NCLOGLEVEL_SILENT
    :margin_t 0
    :margin_r 0

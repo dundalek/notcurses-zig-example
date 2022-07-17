@@ -38,7 +38,7 @@ fn make_boxes_start(dimy: anytype, dimx: anytype) [BOX_NUM][4]c_int {
         var i: usize = 0;
         while (i < bs.len) : (i += 1) {
             var y: c_int = -1;
-            var x: c_int = @divTrunc(dimx, 2);
+            var x: c_int = @divTrunc(@intCast(c_int, dimx), 2);
             bs[i][0] = y;
             bs[i][1] = x;
             bs[i][2] = y + 2;
@@ -53,8 +53,8 @@ fn make_boxes_bottom_out(dimy: anytype, dimx: anytype) [BOX_NUM][4]c_int {
     {
         var i: usize = 0;
         while (i < bs.len) : (i += 1) {
-            var y: c_int = (dimy + 4);
-            var x: c_int = @divTrunc(dimx, 2);
+            var y: c_int = (@intCast(c_int, dimy) + 4);
+            var x: c_int = @divTrunc(@intCast(c_int, dimx), 2);
             bs[i][0] = y;
             bs[i][1] = x;
             bs[i][2] = y + 2;
@@ -64,7 +64,9 @@ fn make_boxes_bottom_out(dimy: anytype, dimx: anytype) [BOX_NUM][4]c_int {
     return bs;
 }
 
-fn make_boxes_arranged(dimy: anytype, dimx: anytype) [BOX_NUM][4]c_int {
+fn make_boxes_arranged(dim_y: anytype, dim_x: anytype) [BOX_NUM][4]c_int {
+    var dimx = @intCast(c_int, dim_x);
+    var dimy = @intCast(c_int, dim_y);
     var x0: c_int = 2;
     var x1 = @divFloor(dimx * 40, 100);
     var x2 = @divFloor(dimx * 55, 100);
@@ -82,10 +84,10 @@ fn make_boxes_arranged(dimy: anytype, dimx: anytype) [BOX_NUM][4]c_int {
 }
 
 fn make_boxes_grid(dimy: anytype, dimx: anytype) [BOX_NUM][4]c_int {
-    const boxh: c_int = @divTrunc(dimy, 5);
+    const boxh: c_int = @divTrunc(@intCast(c_int, dimy), 5);
     const boxw: c_int = (boxh * 2);
-    var y0 = @divFloor(dimy * 20, 100);
-    var x0 = @divFloor(dimx * 20, 100);
+    var y0: c_int = @divFloor(@intCast(c_int, dimy) * 20, 100);
+    var x0: c_int = @divFloor(@intCast(c_int, dimx) * 20, 100);
     var bs: [BOX_NUM][4]c_int = undefined;
     {
         var i: usize = 0;
@@ -104,12 +106,12 @@ fn make_boxes_grid(dimy: anytype, dimx: anytype) [BOX_NUM][4]c_int {
     return bs;
 }
 
-fn box_ylen(box: [4]c_int) c_int {
-    return (box[2] - box[0] - 1);
+fn box_ylen(box: [4]c_int) c_uint {
+    return @intCast(c_uint, box[2] - box[0] - 1);
 }
 
-fn box_xlen(box: [4]c_int) c_int {
-    return (box[3] - box[1] - 2);
+fn box_xlen(box: [4]c_int) c_uint {
+    return @intCast(c_uint, box[3] - box[1] - 2);
 }
 
 fn make_box_planes(n: *nc.ncplane, planes: []*nc.ncplane) void {
@@ -147,7 +149,7 @@ fn draw_boxes_gradients(planes: [BOX_NUM]*nc.ncplane) !void {
             const ul: u32 = (box_colors[i] | @intCast(u32, nc.NC_BGDEFAULT_MASK));
             const lr: u32 = (box_colors[i] | @intCast(u32, nc.NC_BGDEFAULT_MASK));
             const ll: u32 = (0 | nc.NC_BGDEFAULT_MASK);
-            try nc.err(nc.ncplane_highgradient(plane, ul, ur, ll, lr, nc.ncplane_dim_y(plane) - 1, nc.ncplane_dim_x(plane) - 1));
+            try nc.err(nc.ncplane_gradient2x1(plane, 0, 0, nc.ncplane_dim_y(plane), nc.ncplane_dim_x(plane), ul, ur, ll, lr));
         }
     }
 }
@@ -188,7 +190,7 @@ fn make_message_box(parent: *nc.ncplane, windowy: c_int, windowx: c_int) !*nc.nc
     opts.rows = 5 + 2;
     opts.cols = l2.len + 4;
     opts.x = 4;
-    opts.y = windowy - opts.rows - 2;
+    opts.y = windowy - @intCast(c_int, opts.rows) - 2;
     const plane = nc.ncplane_create(parent, &opts).?;
     var chans: u64 = 0;
     try nc.err(nc.ncchannels_set_bg_rgb(&chans, 0));
@@ -240,8 +242,8 @@ pub fn main() !void {
     var nc_opts: nc.notcurses_options = nc.default_notcurses_options;
     var ncs: *nc.notcurses = (nc.notcurses_core_init(&nc_opts, null) orelse @panic("notcurses_core_init() failed"));
     defer _ = nc.notcurses_stop(ncs);
-    var dimy: c_int = undefined;
-    var dimx: c_int = undefined;
+    var dimy: c_uint = undefined;
+    var dimx: c_uint = undefined;
     var n: *nc.ncplane = (nc.notcurses_stddim_yx(ncs, &dimy, &dimx) orelse unreachable);
     dimx = std.math.max(dimx, 80);
     dimy = std.math.max(dimy, 25);
@@ -297,12 +299,12 @@ pub fn main() !void {
             const ul: u32 = (box_colors[i] | @intCast(u32, nc.NC_BGDEFAULT_MASK));
             const lr: u32 = (box_colors[i] | @intCast(u32, nc.NC_BGDEFAULT_MASK));
             const ll: u32 = (transition_rgb(box_colors[i], 0, duration, diff) | @intCast(u32, nc.NC_BGDEFAULT_MASK));
-            try nc.err(nc.ncplane_highgradient(plane, ul, ur, ll, lr, nc.ncplane_dim_y(plane) - 1, nc.ncplane_dim_x(plane) - 1));
+            try nc.err(nc.ncplane_gradient2x1(plane, 0, 0, nc.ncplane_dim_y(plane), nc.ncplane_dim_x(plane), ul, ur, ll, lr));
         }
     }.render);
-    message_box = (try make_message_box(n, dimy, dimx));
+    message_box = (try make_message_box(n, @intCast(c_int, dimy), @intCast(c_int, dimx)));
     try run_transition(ncs, 3.0E8, PositionContext{
-        .from = (-nc.ncplane_dim_x(message_box)),
+        .from = (-@intCast(c_int, nc.ncplane_dim_x(message_box))),
         .to = nc.ncplane_x(message_box),
     }, struct {
         fn render(ctx: PositionContext, diff: u64, duration: u64) nc.Error!void {
@@ -329,12 +331,12 @@ pub fn main() !void {
                                 corners[j] = @intCast(u32, nc.NC_BGDEFAULT_MASK) | transition_rgb(colors[((loop + j) % 4)], colors[((j + loop + 1) % 4)], duration, t - time_start);
                             }
                         }
-                        try nc.err(nc.ncplane_highgradient(plane, corners[0], corners[1], corners[3], corners[2], nc.ncplane_dim_y(plane) - 1, nc.ncplane_dim_x(plane) - 1));
+                        try nc.err(nc.ncplane_gradient2x1(plane, 0, 0, nc.ncplane_dim_y(plane), nc.ncplane_dim_x(plane), corners[0], corners[1], corners[3], corners[2]));
                     }
                 }
                 try nc.err(nc.notcurses_render(ncs));
                 time.sleep_until_ns(t + step_ns);
-                var keypress: c_uint = nc.notcurses_getc_nblock(ncs, null);
+                var keypress: c_uint = nc.notcurses_get_nblock(ncs, null);
                 if (keypress == 'q') {
                     break :outer;
                 }
