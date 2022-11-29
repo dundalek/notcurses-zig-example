@@ -20,7 +20,7 @@ Thanks to Zig's seamless C interop the library can be used directly without wrap
 git clone https://github.com/dankamongmen/notcurses.git deps/notcurses
 cd deps/notcurses
 mkdir build && cd build
-cmake -DUSE_MULTIMEDIA=none DUSE_PANDOC=OFF ..
+cmake -DUSE_MULTIMEDIA=none -DUSE_PANDOC=OFF ..
 # We just need `cmake` to generate some headers, no need to actually `make` since rest will be handled by Zig
 # In case of errors, try `git checkout v3.0.8` and re-run cmake as I tested it with this version.
 ```
