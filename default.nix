@@ -7,6 +7,7 @@ stdenv.mkDerivation {
     zig
 
     # notcurses dependencies
+    pkg-config
     doctest
     libdeflate
     libunistring
