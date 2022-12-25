@@ -27,9 +27,9 @@ pub fn build(b: *Builder) void {
     notcurses.linkSystemLibrary("unistring");
     notcurses.linkSystemLibrary("z");
 
-    notcurses.addIncludeDir(notcurses_source_path ++ "/include");
-    notcurses.addIncludeDir(notcurses_source_path ++ "/build/include");
-    notcurses.addIncludeDir(notcurses_source_path ++ "/src");
+    notcurses.addIncludePath(notcurses_source_path ++ "/include");
+    notcurses.addIncludePath(notcurses_source_path ++ "/build/include");
+    notcurses.addIncludePath(notcurses_source_path ++ "/src");
     notcurses.addCSourceFiles(&[_][]const u8{
         notcurses_source_path ++ "/src/compat/compat.c",
 
@@ -83,7 +83,7 @@ pub fn build(b: *Builder) void {
     // exe.linkSystemLibrary("notcurses-core");
     // exe.addObjectFile(notcurses_source_path ++ "/build/libnotcurses-core.a");
 
-    exe.addIncludeDir(notcurses_source_path ++ "/include");
+    exe.addIncludePath(notcurses_source_path ++ "/include");
     exe.linkLibrary(notcurses);
 
     exe.linkSystemLibrary("qrcodegen");
