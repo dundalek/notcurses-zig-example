@@ -229,7 +229,7 @@ fn run_transition(ncs: *nc.notcurses, duration: u64, ctx: anytype, render: fn (@
     try nc.err(nc.notcurses_render(ncs));
 }
 
-fn run_serial_transition(ncs: *nc.notcurses, duration: u64, render: fn (usize, u64, u64) nc.Error!void) !void {
+fn run_serial_transition(ncs: *nc.notcurses, duration: u64, comptime render: fn (usize, u64, u64) nc.Error!void) !void {
     {
         var i: usize = 0;
         while (i < BOX_NUM) : (i += 1) {
