@@ -221,7 +221,7 @@
   (try (render ctx duration duration))
   (try (nc.err (nc.notcurses_render ncs))))
 
-(defn- ^!void run_serial_transition [^*nc.notcurses ncs ^u64 duration ^"fn(usize, u64, u64) nc.Error!void" render]
+(defn- ^!void run_serial_transition [^*nc.notcurses ncs ^u64 duration ^:comptime ^"fn(usize, u64, u64) nc.Error!void" render]
   (dotimes [i BOX_NUM]
     (try (run_transition ncs duration i render))))
 
