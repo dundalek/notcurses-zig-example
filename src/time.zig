@@ -7,14 +7,14 @@ pub fn timespec_to_ns(ts: *time.timespec) c_long {
 }
 
 pub fn ns_to_timespec(ns: anytype, ts: *time.timespec) void {
-    ts.tv_sec = @intCast(c_long, @divTrunc(ns, NANOSECS_IN_SEC));
-    ts.tv_nsec = @intCast(c_long, ns % NANOSECS_IN_SEC);
+    ts.tv_sec = @as(c_long, @intCast(@divTrunc(ns, NANOSECS_IN_SEC)));
+    ts.tv_nsec = @as(c_long, @intCast(ns % NANOSECS_IN_SEC));
 }
 
 pub fn get_time_ns() u64 {
     var now: time.timespec = undefined;
     _ = time.clock_gettime(time.CLOCK_MONOTONIC, &now);
-    return @intCast(u64, timespec_to_ns(&now));
+    return @as(u64, @intCast(timespec_to_ns(&now)));
 }
 
 pub fn sleep_until_ns(ns: u64) void {

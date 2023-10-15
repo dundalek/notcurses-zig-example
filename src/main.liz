@@ -25,16 +25,17 @@
 
 (defn- ^"@TypeOf(start)" linear_transition [^anytype start ^anytype end ^u64 duration ^u64 diff]
   (return (+ start
-             (@intCast (@TypeOf start)
-                       (@divTrunc (* (- end start)
-                                     (@intCast i64 diff))
-                                  (@intCast i64 duration))))))
+             (@as (@TypeOf start)
+                  (@intCast
+                   (@divTrunc (* (- end start)
+                                (@as i64 (@intCast diff)))
+                             (@as i64 (@intCast duration))))))))
 
 (defn- ^u32 transition_rgb [^u32 start ^u32 end ^u64 duration ^u64 diff]
   (var ^u32 rgb 0)
-  (var r (linear_transition (@intCast c_int (nc.ncchannel_r start)) (@intCast c_int (nc.ncchannel_r end)) duration diff))
-  (var g (linear_transition (@intCast c_int (nc.ncchannel_g start)) (@intCast c_int (nc.ncchannel_g end)) duration diff))
-  (var b (linear_transition (@intCast c_int (nc.ncchannel_b start)) (@intCast c_int (nc.ncchannel_b end)) duration diff))
+  (var r (linear_transition (@as c_int (@intCast (nc.ncchannel_r start))) (@as c_int (@intCast (nc.ncchannel_r end))) duration diff))
+  (var g (linear_transition (@as c_int (@intCast (nc.ncchannel_g start))) (@as c_int (@intCast (nc.ncchannel_g end))) duration diff))
+  (var b (linear_transition (@as c_int (@intCast (nc.ncchannel_b start))) (@as c_int (@intCast (nc.ncchannel_b end))) duration diff))
   (nc.ncchannel_set_rgb8_clipped &rgb r g b)
   (return rgb))
 
@@ -49,7 +50,7 @@
   (var ^"[BOX_NUM][4]c_int" bs undefined)
   (dotimes [i bs.len]
     (var ^c_int y -1)
-    (var ^c_int x (@divTrunc (@intCast c_int dimx) 2))
+    (var ^c_int x (@divTrunc (@as c_int (@intCast dimx)) 2))
     (aset bs i 0 y)
     (aset bs i 1 x)
     (aset bs i 2 (+ y 2))
@@ -59,8 +60,8 @@
 (defn- ^"[BOX_NUM][4]c_int" make_boxes_bottom_out [^anytype dimy ^anytype dimx]
   (var ^"[BOX_NUM][4]c_int" bs undefined)
   (dotimes [i bs.len]
-    (var ^c_int y (+ (@intCast c_int dimy) 4))
-    (var ^c_int x (@divTrunc (@intCast c_int dimx) 2))
+    (var ^c_int y (+ (@as c_int (@intCast dimy)) 4))
+    (var ^c_int x (@divTrunc (@as c_int (@intCast dimx)) 2))
     (aset bs i 0 y)
     (aset bs i 1 x)
     (aset bs i 2 (+ y 2))
@@ -68,8 +69,8 @@
   (return bs))
 
 (defn- ^"[BOX_NUM][4]c_int" make_boxes_arranged [^anytype dim_y ^anytype dim_x]
-  (var dimx (@intCast c_int dim_x))
-  (var dimy (@intCast c_int dim_y))
+  (var dimx (@as c_int (@intCast dim_x)))
+  (var dimy (@as c_int (@intCast dim_y)))
   (var ^c_int x0 2)
   (var x1 (-> dimx (* 40) (@divFloor 100)))
   (var x2 (-> dimx (* 55) (@divFloor 100)))
@@ -101,14 +102,14 @@
   (return bs))
 
 (defn- ^"[BOX_NUM][4]c_int" make_boxes_grid [^anytype dimy ^anytype dimx]
-  (const ^c_int boxh (@divTrunc (@intCast c_int dimy) 5))
+  (const ^c_int boxh (@divTrunc (@as c_int (@intCast dimy)) 5))
   (const ^c_int boxw (* boxh 2))
-  (var ^c_int y0 (-> (@intCast c_int dimy) (* 20) (@divFloor 100)))
-  (var ^c_int x0 (-> (@intCast c_int dimx) (* 20) (@divFloor 100)))
+  (var ^c_int y0 (-> (@as c_int (@intCast dimy)) (* 20) (@divFloor 100)))
+  (var ^c_int x0 (-> (@as c_int (@intCast dimx)) (* 20) (@divFloor 100)))
   (var ^"[BOX_NUM][4]c_int" bs undefined)
   (dotimes [i bs.len]
-    (const ^c_int row (@divFloor (@intCast c_int i) 5))
-    (const ^c_int col (@mod (@intCast c_int i) 5))
+    (const ^c_int row (@divFloor (@as c_int (@intCast i)) 5))
+    (const ^c_int col (@mod (@as c_int (@intCast i)) 5))
     (const shifted (zero? (@mod col 2)))
     (const y (+ y0
                 (* row (+ boxh (@divTrunc boxh 2)))
@@ -122,10 +123,10 @@
   (return bs))
 
 (defn- ^c_uint box_ylen [^"[4]c_int" box]
-  (return (@intCast c_uint (- (aget box 2) (aget box 0) 1))))
+  (return (@as c_uint (@intCast (- (aget box 2) (aget box 0) 1)))))
 
 (defn- ^c_uint box_xlen [^"[4]c_int" box]
-  (return (@intCast c_uint (- (aget box 3) (aget box 1) 2))))
+  (return (@as c_uint (@intCast (- (aget box 3) (aget box 1) 2)))))
 
 (defn- ^void make_box_planes [^*nc.ncplane n ^"[] *nc.ncplane" planes]
   (dotimes [i planes.len]
@@ -147,8 +148,8 @@
   (dotimes [i planes.len]
     (const plane (aget planes i))
     (const ^u32 ur (bit-or 0xffffff nc.NC_BGDEFAULT_MASK))
-    (const ^u32 ul (bit-or (aget box_colors i) (@intCast u32 nc.NC_BGDEFAULT_MASK)))
-    (const ^u32 lr (bit-or (aget box_colors i) (@intCast u32 nc.NC_BGDEFAULT_MASK)))
+    (const ^u32 ul (bit-or (aget box_colors i) (@as u32 nc.NC_BGDEFAULT_MASK)))
+    (const ^u32 lr (bit-or (aget box_colors i) (@as u32 nc.NC_BGDEFAULT_MASK)))
     (const ^u32 ll (bit-or 0x000000 nc.NC_BGDEFAULT_MASK))
     (try (nc.err (nc.ncplane_gradient2x1 plane 0 0 (nc.ncplane_dim_y plane) (nc.ncplane_dim_x plane) ul ur ll lr)))))
 
@@ -179,7 +180,7 @@
   (set! (.-rows opts) (+ 5 2))
   (set! (.-cols opts) (-> l2 .-len (+ 4)))
   (set! (.-x opts) 4)
-  (set! (.-y opts) (- windowy (@intCast c_int (.-rows opts)) 2))
+  (set! (.-y opts) (- windowy (@as c_int (@intCast (.-rows opts))) 2))
   (const plane (.-? (nc.ncplane_create parent &opts)))
 
   (var ^u64 chans 0)
@@ -237,8 +238,8 @@
   (var ^c_uint dimx undefined)
   (var ^*nc.ncplane n (-> (nc.notcurses_stddim_yx ncs &dimy &dimx)
                           (orelse (unreachable))))
-  (set! dimx (std.math.max dimx 80))
-  (set! dimy (std.math.max dimy 25))
+  (set! dimx (@max dimx 80))
+  (set! dimy (@max dimy 25))
   (var ^u64 std_chan 0)
   (try (nc.err (nc.ncchannels_set_bg_rgb &std_chan 0x000000)))
   (try (nc.err (nc.ncplane_set_base n " " 0 std_chan)))
@@ -287,10 +288,10 @@
   (try (run_serial_transition ncs 150e6
          (-> (fn ^nc.Error!void render [^usize i ^u64 diff ^u64 duration]
               (const plane (aget box_planes i))
-              (const ^u32 ur (bit-or (transition_rgb (aget box_colors i) 0xffffff duration diff) (@intCast u32 nc.NC_BGDEFAULT_MASK)))
-              (const ^u32 ul (bit-or (aget box_colors i) (@intCast u32 nc.NC_BGDEFAULT_MASK)))
-              (const ^u32 lr (bit-or (aget box_colors i) (@intCast u32 nc.NC_BGDEFAULT_MASK)))
-              (const ^u32 ll (bit-or (transition_rgb (aget box_colors i) 0x000000 duration diff) (@intCast u32 nc.NC_BGDEFAULT_MASK)))
+              (const ^u32 ur (bit-or (transition_rgb (aget box_colors i) 0xffffff duration diff) (@as u32 nc.NC_BGDEFAULT_MASK)))
+              (const ^u32 ul (bit-or (aget box_colors i) (@as u32 nc.NC_BGDEFAULT_MASK)))
+              (const ^u32 lr (bit-or (aget box_colors i) (@as u32 nc.NC_BGDEFAULT_MASK)))
+              (const ^u32 ll (bit-or (transition_rgb (aget box_colors i) 0x000000 duration diff) (@as u32 nc.NC_BGDEFAULT_MASK)))
               (try (nc.err (nc.ncplane_gradient2x1 plane 0 0 (nc.ncplane_dim_y plane) (nc.ncplane_dim_x plane) ul ur ll lr))))
             struct .-render)))
 
@@ -298,9 +299,9 @@
   ; (try (draw_boxes_gradients box_planes))
   ; (try (nc.err (nc.notcurses_render ncs)))
 
-  (set! message_box (try (make_message_box n (@intCast c_int dimy) (@intCast c_int dimx))))
+  (set! message_box (try (make_message_box n (@as c_int (@intCast dimy)) (@as c_int (@intCast dimx)))))
   (try (run_transition ncs 300e6
-                       ^PositionContext{:from (- (@intCast c_int (nc.ncplane_dim_x message_box)))
+                       ^PositionContext{:from (- (@as c_int (@intCast (nc.ncplane_dim_x message_box))))
                                         :to (nc.ncplane_x message_box)}
                        (-> (fn ^nc.Error!void render [^PositionContext ctx ^u64 diff ^u64 duration]
                             (const ^c_int x (linear_transition (.-from ctx) (.-to ctx) duration diff))
@@ -325,7 +326,7 @@
                   0x000000])
           (var ^"[4]u32" corners undefined)
           (dotimes [j 4]
-            (aset corners j (bit-or (@intCast u32 nc.NC_BGDEFAULT_MASK)
+            (aset corners j (bit-or (@as u32 nc.NC_BGDEFAULT_MASK)
                                     (transition_rgb (aget colors (mod (+ loop j) 4))
                                                     (aget colors (mod (+ j loop 1) 4))
                                                     duration

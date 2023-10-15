@@ -3,3 +3,4 @@ zig-out
 deps/notcurses
 .idea
 .clj-kondo
+.nrepl-port

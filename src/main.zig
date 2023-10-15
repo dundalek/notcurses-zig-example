@@ -8,14 +8,14 @@ const c_blu: u32 = 3950975;
 const c_whi: u32 = 16711422;
 const box_colors = [BOX_NUM]u32{ c_red, c_whi, c_yel, c_whi, c_blu, c_whi, c_blu, c_yel, c_red, c_whi };
 fn linear_transition(start: anytype, end: anytype, duration: u64, diff: u64) @TypeOf(start) {
-    return (start + @intCast(@TypeOf(start), @divTrunc((end - start) * @intCast(i64, diff), @intCast(i64, duration))));
+    return (start + @as(@TypeOf(start), @intCast(@divTrunc((end - start) * @as(i64, @intCast(diff)), @as(i64, @intCast(duration))))));
 }
 
 fn transition_rgb(start: u32, end: u32, duration: u64, diff: u64) u32 {
     var rgb: u32 = 0;
-    var r = linear_transition(@intCast(c_int, nc.ncchannel_r(start)), @intCast(c_int, nc.ncchannel_r(end)), duration, diff);
-    var g = linear_transition(@intCast(c_int, nc.ncchannel_g(start)), @intCast(c_int, nc.ncchannel_g(end)), duration, diff);
-    var b = linear_transition(@intCast(c_int, nc.ncchannel_b(start)), @intCast(c_int, nc.ncchannel_b(end)), duration, diff);
+    var r = linear_transition(@as(c_int, @intCast(nc.ncchannel_r(start))), @as(c_int, @intCast(nc.ncchannel_r(end))), duration, diff);
+    var g = linear_transition(@as(c_int, @intCast(nc.ncchannel_g(start))), @as(c_int, @intCast(nc.ncchannel_g(end))), duration, diff);
+    var b = linear_transition(@as(c_int, @intCast(nc.ncchannel_b(start))), @as(c_int, @intCast(nc.ncchannel_b(end))), duration, diff);
     nc.ncchannel_set_rgb8_clipped(&rgb, r, g, b);
     return rgb;
 }
@@ -38,7 +38,7 @@ fn make_boxes_start(dimy: anytype, dimx: anytype) [BOX_NUM][4]c_int {
         var i: usize = 0;
         while (i < bs.len) : (i += 1) {
             var y: c_int = -1;
-            var x: c_int = @divTrunc(@intCast(c_int, dimx), 2);
+            var x: c_int = @divTrunc(@as(c_int, @intCast(dimx)), 2);
             bs[i][0] = y;
             bs[i][1] = x;
             bs[i][2] = y + 2;
@@ -53,8 +53,8 @@ fn make_boxes_bottom_out(dimy: anytype, dimx: anytype) [BOX_NUM][4]c_int {
     {
         var i: usize = 0;
         while (i < bs.len) : (i += 1) {
-            var y: c_int = (@intCast(c_int, dimy) + 4);
-            var x: c_int = @divTrunc(@intCast(c_int, dimx), 2);
+            var y: c_int = (@as(c_int, @intCast(dimy)) + 4);
+            var x: c_int = @divTrunc(@as(c_int, @intCast(dimx)), 2);
             bs[i][0] = y;
             bs[i][1] = x;
             bs[i][2] = y + 2;
@@ -65,8 +65,8 @@ fn make_boxes_bottom_out(dimy: anytype, dimx: anytype) [BOX_NUM][4]c_int {
 }
 
 fn make_boxes_arranged(dim_y: anytype, dim_x: anytype) [BOX_NUM][4]c_int {
-    var dimx = @intCast(c_int, dim_x);
-    var dimy = @intCast(c_int, dim_y);
+    var dimx = @as(c_int, @intCast(dim_x));
+    var dimy = @as(c_int, @intCast(dim_y));
     var x0: c_int = 2;
     var x1 = @divFloor(dimx * 40, 100);
     var x2 = @divFloor(dimx * 55, 100);
@@ -84,16 +84,16 @@ fn make_boxes_arranged(dim_y: anytype, dim_x: anytype) [BOX_NUM][4]c_int {
 }
 
 fn make_boxes_grid(dimy: anytype, dimx: anytype) [BOX_NUM][4]c_int {
-    const boxh: c_int = @divTrunc(@intCast(c_int, dimy), 5);
+    const boxh: c_int = @divTrunc(@as(c_int, @intCast(dimy)), 5);
     const boxw: c_int = (boxh * 2);
-    var y0: c_int = @divFloor(@intCast(c_int, dimy) * 20, 100);
-    var x0: c_int = @divFloor(@intCast(c_int, dimx) * 20, 100);
+    var y0: c_int = @divFloor(@as(c_int, @intCast(dimy)) * 20, 100);
+    var x0: c_int = @divFloor(@as(c_int, @intCast(dimx)) * 20, 100);
     var bs: [BOX_NUM][4]c_int = undefined;
     {
         var i: usize = 0;
         while (i < bs.len) : (i += 1) {
-            const row: c_int = @divFloor(@intCast(c_int, i), 5);
-            const col: c_int = @mod(@intCast(c_int, i), 5);
+            const row: c_int = @divFloor(@as(c_int, @intCast(i)), 5);
+            const col: c_int = @mod(@as(c_int, @intCast(i)), 5);
             const shifted = (@mod(col, 2) == 0);
             const y = (y0 + (row * (boxh + @divTrunc(boxh, 2))) + if (shifted) @divTrunc(boxh, 2) + 1 else 0);
             const x = (x0 + (col * (boxw + 2)));
@@ -107,11 +107,11 @@ fn make_boxes_grid(dimy: anytype, dimx: anytype) [BOX_NUM][4]c_int {
 }
 
 fn box_ylen(box: [4]c_int) c_uint {
-    return @intCast(c_uint, box[2] - box[0] - 1);
+    return @as(c_uint, @intCast(box[2] - box[0] - 1));
 }
 
 fn box_xlen(box: [4]c_int) c_uint {
-    return @intCast(c_uint, box[3] - box[1] - 2);
+    return @as(c_uint, @intCast(box[3] - box[1] - 2));
 }
 
 fn make_box_planes(n: *nc.ncplane, planes: []*nc.ncplane) void {
@@ -146,8 +146,8 @@ fn draw_boxes_gradients(planes: [BOX_NUM]*nc.ncplane) !void {
         while (i < planes.len) : (i += 1) {
             const plane = planes[i];
             const ur: u32 = (16777215 | nc.NC_BGDEFAULT_MASK);
-            const ul: u32 = (box_colors[i] | @intCast(u32, nc.NC_BGDEFAULT_MASK));
-            const lr: u32 = (box_colors[i] | @intCast(u32, nc.NC_BGDEFAULT_MASK));
+            const ul: u32 = (box_colors[i] | @as(u32, nc.NC_BGDEFAULT_MASK));
+            const lr: u32 = (box_colors[i] | @as(u32, nc.NC_BGDEFAULT_MASK));
             const ll: u32 = (0 | nc.NC_BGDEFAULT_MASK);
             try nc.err(nc.ncplane_gradient2x1(plane, 0, 0, nc.ncplane_dim_y(plane), nc.ncplane_dim_x(plane), ul, ur, ll, lr));
         }
@@ -190,7 +190,7 @@ fn make_message_box(parent: *nc.ncplane, windowy: c_int, windowx: c_int) !*nc.nc
     opts.rows = 5 + 2;
     opts.cols = l2.len + 4;
     opts.x = 4;
-    opts.y = windowy - @intCast(c_int, opts.rows) - 2;
+    opts.y = windowy - @as(c_int, @intCast(opts.rows)) - 2;
     const plane = nc.ncplane_create(parent, &opts).?;
     var chans: u64 = 0;
     try nc.err(nc.ncchannels_set_bg_rgb(&chans, 0));
@@ -245,8 +245,8 @@ pub fn main() !void {
     var dimy: c_uint = undefined;
     var dimx: c_uint = undefined;
     var n: *nc.ncplane = (nc.notcurses_stddim_yx(ncs, &dimy, &dimx) orelse unreachable);
-    dimx = std.math.max(dimx, 80);
-    dimy = std.math.max(dimy, 25);
+    dimx = @max(dimx, 80);
+    dimy = @max(dimy, 25);
     var std_chan: u64 = 0;
     try nc.err(nc.ncchannels_set_bg_rgb(&std_chan, 0));
     try nc.err(nc.ncplane_set_base(n, " ", 0, std_chan));
@@ -295,16 +295,16 @@ pub fn main() !void {
     try run_serial_transition(ncs, 1.5E8, struct {
         fn render(i: usize, diff: u64, duration: u64) nc.Error!void {
             const plane = box_planes[i];
-            const ur: u32 = (transition_rgb(box_colors[i], 16777215, duration, diff) | @intCast(u32, nc.NC_BGDEFAULT_MASK));
-            const ul: u32 = (box_colors[i] | @intCast(u32, nc.NC_BGDEFAULT_MASK));
-            const lr: u32 = (box_colors[i] | @intCast(u32, nc.NC_BGDEFAULT_MASK));
-            const ll: u32 = (transition_rgb(box_colors[i], 0, duration, diff) | @intCast(u32, nc.NC_BGDEFAULT_MASK));
+            const ur: u32 = (transition_rgb(box_colors[i], 16777215, duration, diff) | @as(u32, nc.NC_BGDEFAULT_MASK));
+            const ul: u32 = (box_colors[i] | @as(u32, nc.NC_BGDEFAULT_MASK));
+            const lr: u32 = (box_colors[i] | @as(u32, nc.NC_BGDEFAULT_MASK));
+            const ll: u32 = (transition_rgb(box_colors[i], 0, duration, diff) | @as(u32, nc.NC_BGDEFAULT_MASK));
             try nc.err(nc.ncplane_gradient2x1(plane, 0, 0, nc.ncplane_dim_y(plane), nc.ncplane_dim_x(plane), ul, ur, ll, lr));
         }
     }.render);
-    message_box = (try make_message_box(n, @intCast(c_int, dimy), @intCast(c_int, dimx)));
+    message_box = (try make_message_box(n, @as(c_int, @intCast(dimy)), @as(c_int, @intCast(dimx))));
     try run_transition(ncs, 3.0E8, PositionContext{
-        .from = (-@intCast(c_int, nc.ncplane_dim_x(message_box))),
+        .from = (-@as(c_int, @intCast(nc.ncplane_dim_x(message_box)))),
         .to = nc.ncplane_x(message_box),
     }, struct {
         fn render(ctx: PositionContext, diff: u64, duration: u64) nc.Error!void {
@@ -328,7 +328,7 @@ pub fn main() !void {
                         {
                             var j: usize = 0;
                             while (j < 4) : (j += 1) {
-                                corners[j] = @intCast(u32, nc.NC_BGDEFAULT_MASK) | transition_rgb(colors[((loop + j) % 4)], colors[((j + loop + 1) % 4)], duration, t - time_start);
+                                corners[j] = @as(u32, nc.NC_BGDEFAULT_MASK) | transition_rgb(colors[((loop + j) % 4)], colors[((j + loop + 1) % 4)], duration, t - time_start);
                             }
                         }
                         try nc.err(nc.ncplane_gradient2x1(plane, 0, 0, nc.ncplane_dim_y(plane), nc.ncplane_dim_x(plane), corners[0], corners[1], corners[3], corners[2]));
